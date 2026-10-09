@@ -211,13 +211,16 @@ It opens at http://localhost:8501. The maps need an internet connection for thei
 ### Demo script (follow the sidebar order, ~15 minutes)
 | Page | What to show | What to say |
 |---|---|---|
-| **The question** | Map with the corridor as larger dots | "This is the 26 August event and the question: where else is Nepal at risk?" |
-| **Climate** | Four headline numbers, then the two charts | "Rainfall is up 22 mm a year and extreme days are up about half. But 26 August was an ordinary rain day: the trigger was ice." |
-| **Terrain and exposure** | Hover the red dots in the scatter; switch tabs | "Eight districts combine steep terrain with big rivers. People cluster in cities; fragility is in the mountains." |
-| **Risk explorer** | Switch Landslide → Flood → Combined; pick **Sindhupalchok** in the profile | "Here's every district's risk. Notice the corridor sits mid-table. Our data can't see glacial hazard." |
+| **Overview** | KPI cards and the risk map; pick **Sindhupalchok** in the District filter | "This is the 26 August corridor. Rainfall is rising; temperature shows no significant trend. Sindhupalchok ranks only 19th for landslide risk." |
+| **Risk Mapping** | Switch the Hazard index; drag a box around a star marker to open a district | "Shape and colour both show the risk band, so it reads for colour-blind users too. Our data can't see glacial hazard." |
+| **Climate Trends** | Four headline numbers; move the Period slider | "Rainfall is up 22 mm a year and extreme days are up about half. But 26 August was an ordinary rain day: the trigger was ice." |
+| **Exposure & Vulnerability** | Pick a Province; switch tabs | "Eight districts combine steep terrain with big rivers. People cluster in cities; fragility is in the mountains." |
 | **Scenarios** | Preset "Landslide early-warning targets"; move the coverage slider | "If early warning reaches 80% of people, risk in these districts drops by about 8 points. Hazard and exposure don't change, which is why we also invest in monitoring." |
-| **Validation** | The three ρ numbers, the heatmap, then the flood explanation | "Landslides: the index works. Floods: it doesn't, and here's why. And the August disaster isn't even in the record." |
-| **Investment** | Bar chart and table; the early-warning simulation table | "$63M where evidence is strong, $37M to close the blind spots." |
+| **Validation** | The three ρ cards with their status labels, the matrix, then the flood explanation | "Landslides: the index works. Floods: it doesn't, and here's why. And the August disaster isn't even in the record." |
+| **Investment Plan** | Bar chart and traceability table | "$63M where evidence is strong, $37M to close the blind spots." |
+| **Data Explorer** | Search a district; filter by risk band; Download CSV | "Every number in the app is here, downloadable." |
+
+**Filters carry across pages.** A district or province picked on one page stays selected on the others, and pages only show the filters that change what's on them. **Risk bands** (Very low to Very high) are labels on the 0–100 relative scores, in steps of 20, not new calculations; the About page explains them.
 | **Sidebar (bonus)** | Switch to "Weighted sum", then Reset | "Changing the method barely changes the ranking, so our conclusions are robust. Reported results always use the defaults." |
 
 **Important if an examiner plays with the sliders:** the Validation page shows correlations under whatever settings are active, with a warning banner. Say clearly: *"The brief forbids tuning weights until the correlation looks good. These sliders are for testing robustness. Our reported results use the defaults, chosen before validation."*
