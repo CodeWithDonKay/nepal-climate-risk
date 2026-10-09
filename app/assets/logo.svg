@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210" height="40" viewBox="0 0 210 40">
+  <g transform="translate(1,4)">
+    <path d="M0 29 L11 11 L17 20 L24 8 L38 29 Z" fill="#1F3A5F"/>
+    <path d="M24 8 L28.5 15 L25.5 14 L23 17 L20.5 14.5 Z" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="0" y="31" width="38" height="2" fill="#B8243B"/>
+  </g>
+  <text x="50" y="27" font-family="IBM Plex Sans, Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#14202B">Nepal Risk Atlas</text>
+</svg>

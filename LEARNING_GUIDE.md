@@ -196,7 +196,13 @@ It opens at http://localhost:8501. The maps need an internet connection for thei
 |---|---|
 | `app/risk_model.py` | The scoring engine. It repeats the notebook's Phases 2–5 as functions with the weights as inputs, so sliders genuinely recompute scores. Run `python app/risk_model.py` to prove it reproduces the notebook (it checks itself). |
 | `app/streamlit_app.py` | The 8 pages, charts and sliders |
-| `.streamlit/config.toml` | Colours (same palette as the deck); keeps the app private to your computer |
+| `app/ui.py` | The **design system**: colour roles, typography, one shared chart style, and reusable page pieces (page header, KPI cards, findings list, notes, tables) |
+| `.streamlit/config.toml` | Theme: IBM Plex Sans typeface, navy controls, hairline borders, light sidebar; hides developer menus from viewers |
+
+**Design choices (so you can explain them):**
+- **Colour has a job, not a decoration.** Steel indigo = normal data; **crimson only highlights** what the reader should look at; grey = context. Maps use one-colour shading: brown for landslide, blue for flood, crimson for combined risk. The data colours were checked with a colour-blindness validator.
+- **One consistent layout per page:** section label → title → one-sentence summary → key numbers (KPI cards) → charts → numbered findings (F1–F11) that link to the notebook.
+- **Restraint reads as professional:** no emojis, no coloured banners, thin dividers, plenty of white space, and a footer citing the data sources.
 
 **Key concept: re-scoring on the baseline scale.** Min-max always gives the best district 0 and the worst 100. If we re-normalised after an intervention, the treated district could look *unchanged*, because the scale would stretch to fit. So scenarios keep the **baseline** min and max as a fixed ruler. Improvements then show up as real drops.
 
