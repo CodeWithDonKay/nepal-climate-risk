@@ -156,33 +156,48 @@ def _map_select(key):
 
 
 # ---------------------------------------------------------------- charts
+# One-hue colour ramps per hazard, as in the original design (light = lower risk, dark = higher risk)
+MAP_RAMP = {
+    "risk_landslide": ["#F7F1EA", "#E7D3BC", "#CFAA82", "#B07E4C", "#865628", "#553515"],
+    "risk_flood": ["#EEF4FA", "#C6DBEF", "#8DB8DE", "#4F8DC4", "#2462A3", "#133F73"],
+    "risk_combined": ["#FBEFF1", "#F2C4CC", "#E28797", "#C94A61", "#A51F3A", "#6A0F22"],
+}
+
+
+def _view(data):
+    """Centre and zoom that fit the districts shown (all of Nepal, or one province)."""
+    lat0, lat1, lon0, lon1 = data.latitude.min(), data.latitude.max(), data.longitude.min(), data.longitude.max()
+    span = max(lon1 - lon0, (lat1 - lat0) * 2, 0.8)
+    zoom = float(np.clip(np.log2(360 / span) - 0.55, 4.5, 8.5))
+    return {"lat": (lat0 + lat1) / 2, "lon": (lon0 + lon1) / 2}, zoom
+
+
 def risk_map(idx, key, data, height=500, select=True):
-    """Points at each district's representative location, coloured AND shaped by risk band, over Nepal's national boundary."""
+    """Interactive basemap (zoom, pan, scroll-zoom, hover) with each district shaded on its hazard's colour ramp.
+    The selected district is ringed; hover shows score, risk band and rank."""
     sel = selected_district()
+    m = data.reset_index()
+    m["band"] = m[idx].map(lambda v: ui.band_of(v)[0])
     fig = go.Figure()
-    for lo, label, _level, symbol, color in ui.BANDS:
-        hi = lo + 20 if lo < 80 else 101
-        part = data[(data[idx] >= lo) & (data[idx] < hi)]
-        if part.empty:
-            continue
-        is_sel = part.index == sel
-        fig.add_scattergeo(
-            lat=part.latitude, lon=part.longitude, mode="markers", name=f"{label} ({lo}–{min(hi, 100)})",
-            marker=dict(symbol=symbol, color=color, size=np.where(is_sel, 22, 13), opacity=1,
-                        line=dict(color=np.where(is_sel, "#000000", HEAD).tolist(), width=np.where(is_sel, 3, 1).tolist())),
-            customdata=np.stack([part.District, part.province, part[idx].round(0), part[idx + "_rank"],
-                                 part.risk_landslide.round(0), part.risk_flood.round(0)], axis=-1),
-            hovertemplate=("<b>%{customdata[0]}</b> · %{customdata[1]} Province<br>" + f"{HAZARD[idx]} risk: " +
-                           "<b>%{customdata[2]}</b> / 100 (" + label + ")<br>Rank %{customdata[3]} of 77<br>"
-                           "Landslide %{customdata[4]} · Flood %{customdata[5]}<extra></extra>"))
-    whole = len(data) == len(D)
-    fig.update_geos(fitbounds=False if whole else "locations", resolution=50, projection_type="mercator", showframe=False,
-                    bgcolor="rgba(0,0,0,0)", lonaxis_range=[79.9, 88.4] if whole else None, lataxis_range=[26.2, 30.6] if whole else None,
-                    showcountries=True, countrycolor="#475569", countrywidth=1.2, showland=True, landcolor="#F8FAFC",
-                    showlakes=True, lakecolor="#D6E8F5", showrivers=True, rivercolor="#9CC6E2", riverwidth=1, showcoastlines=False)
-    fig.update_layout(height=height, margin=dict(l=0, r=0, t=0, b=0), clickmode="event+select", dragmode="select",
-                      geo_domain=dict(x=[0, 1], y=[0.08, 1]),
-                      legend=dict(orientation="h", y=-0.02, yanchor="top", x=0, title_text="Risk band: "))
+    if sel in data.index:  # dark ring under the selected district
+        r = data.loc[sel]
+        fig.add_scattermap(lat=[r.latitude], lon=[r.longitude], mode="markers", hoverinfo="skip", showlegend=False,
+                           marker=dict(size=27, color=HEAD))
+    fig.add_scattermap(
+        lat=m.latitude, lon=m.longitude, mode="markers", showlegend=False,
+        marker=dict(size=np.where(m.district_name == sel, 20, 13), color=m[idx], cmin=0, cmax=100,
+                    colorscale=MAP_RAMP[idx], opacity=0.95,
+                    colorbar=dict(orientation="h", x=0.02, xanchor="left", y=0.98, yanchor="top", len=0.34, thickness=9,
+                                  title=dict(text=f"{HAZARD[idx]} risk (0–100)", side="top", font=dict(size=11, color=ui.BODY)),
+                                  bgcolor="rgba(255,255,255,0.88)", tickfont=dict(size=10, color=ui.BODY))),
+        customdata=np.stack([m.District, m.province, m[idx].round(0), m.band, m[idx + "_rank"],
+                             m.risk_landslide.round(0), m.risk_flood.round(0)], axis=-1),
+        hovertemplate=("<b>%{customdata[0]}</b> · %{customdata[1]} Province<br>" + f"{HAZARD[idx]} risk: " +
+                       "<b>%{customdata[2]}</b> / 100 (%{customdata[3]})<br>Rank %{customdata[4]} of 77<br>"
+                       "Landslide %{customdata[5]} · Flood %{customdata[6]}<extra></extra>"))
+    center, zoom = _view(data)
+    fig.update_layout(height=height, margin=dict(l=0, r=0, t=0, b=0),
+                      map=dict(style="carto-positron", center=center, zoom=zoom))
     return ui.chart(fig, key=key, on_select=_map_select(key) if select else "ignore", selection_mode=("points", "box"))
 
 
@@ -260,8 +275,8 @@ def page_overview():
 
     c1, c2 = st.columns([1.55, 1], gap="medium")
     with c1:
-        with ui.card("ov_map", f"{HAZARD[idx]} risk by district", f"{scope_name()}. Shape and colour both show the risk band; "
-                                                                   "drag a box around a marker to open that district."):
+        with ui.card("ov_map", f"{HAZARD[idx]} risk by district", f"{scope_name()}. Darker = higher risk. Zoom, pan and hover; "
+                                                                   "click a district to open it."):
             risk_map(idx, "map_overview", sc, height=380)
     with c2:
         if d:
@@ -325,7 +340,7 @@ def page_risk_mapping():
                 "Low-confidence index", warn=True)
     c1, c2 = st.columns([1.5, 1], gap="medium")
     with c1:
-        with ui.card("rm_map", f"{HAZARD[idx]} risk", f"{scope_name()} · drag a box around a marker to open its profile"):
+        with ui.card("rm_map", f"{HAZARD[idx]} risk", f"{scope_name()} · zoom, pan and hover; click a district to open its profile"):
             risk_map(idx, "map_mapping", sc, height=520)
     with c2:
         with ui.card("rm_rank", "District ranking", "Search, sort or download with the table toolbar"):
@@ -337,7 +352,7 @@ def page_risk_mapping():
                                         "National rank": st.column_config.NumberColumn("Rank", format="%d")})
 
     if not d:
-        ui.note("Choose a district in the filter bar, or drag a box around a marker on the map, to see its profile.", "District profile")
+        ui.note("Choose a district in the filter bar, or click one on the map, to see its profile.", "District profile")
         return
     r = D.loc[d]
     st.markdown(f"<h2 class='card-title' style='margin:10px 0 8px'>District profile: {r.District}</h2>", unsafe_allow_html=True)
@@ -726,7 +741,7 @@ def page_about():
         with ui.card("ab_bands", "Risk bands", "Display labels on the relative 0–100 scores; they are not absolute danger thresholds"):
             ui.table(pd.DataFrame({"Band": [b[1] for b in ui.BANDS],
                                    "Score": ["0–19", "20–39", "40–59", "60–79", "80–100"],
-                                   "Map symbol": ["● circle", "■ square", "◆ diamond", "▲ triangle", "★ star"]}))
+                                   "Card meter": ["1 of 5", "2 of 5", "3 of 5", "4 of 5", "5 of 5"]}))
         with ui.card("ab_limits", "Limitations"):
             st.markdown("- No poverty, age, housing or early-warning coverage data\n- OpenStreetMap undercounts rural facilities and roads\n"
                         "- One rainfall point per district on a coarse satellite grid; no district boundary file, so maps show points\n"
@@ -746,8 +761,8 @@ def page_about():
                 "- Map basemap: Natural Earth national boundaries, rivers and lakes (via Plotly)")
         with ui.card("ab_a11y", "Accessibility"):
             st.markdown(
-                "- Colour palette: Okabe–Ito (designed for colour-vision deficiency); map bands use the Cividis scale\n"
-                "- Risk levels always carry a **text label** and a **shape or meter**, never colour alone\n"
+                "- Colour palette: Okabe–Ito (designed for colour-vision deficiency); maps use one-hue light-to-dark scales, readable by lightness alone\n"
+                "- Risk levels always carry a **text label** (map hover, tables, badges) and a meter on cards, never colour alone\n"
                 "- Series are separated by dash style, marker shape, hatching and direct labels\n"
                 "- Text colours checked against WCAG contrast (≥ 4.5:1); chart marks ≥ 3:1 except orange, which is never used alone\n"
                 "- Visible keyboard focus rings on all interactive elements\n"
