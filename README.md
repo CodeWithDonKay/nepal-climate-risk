@@ -1,5 +1,7 @@
 # Nepal Climate Risk Explorer
 
+**Live app:** https://nepal-climate-risk.streamlit.app
+
 An interactive Streamlit app and analysis notebook that assess climate-disaster risk across Nepal's 77 districts. The risk index is tested against 12,518 recorded disasters (2011–2026), and the project ends with a traceable USD 100 million resilience recommendation.
 
 **Core idea:** Risk = Hazard × Exposure × Vulnerability, scored per district, then validated against Nepal's own disaster history (BIPAD Portal).
