@@ -1404,17 +1404,7 @@ def top(col, n=10):
     return {"labels": [i.title() for i in s.index], "values": [round(float(v), 1) for v in s.values]}
 
 
-# National mean annual temperature, same window and same 45 independent series as rainfall (used by the app's overview)
-tclim = climate[climate.district_name.isin(indep) & climate.date.dt.year.between(2004, 2025)]
-temp_annual = tclim.groupby(tclim.date.dt.year).temperature_mean_c.mean()
-r_temp = stats.linregress(temp_annual.index, temp_annual.values)
-print(f"National mean temperature 2004-2025: {temp_annual.mean():.2f} C; trend {r_temp.slope * 10:+.2f} C/decade (p = {r_temp.pvalue:.3f})")
-
 deck = {
-    "temp_years": [int(y) for y in temp_annual.index],
-    "temp_c": [round(float(v), 2) for v in temp_annual.values],
-    "temp_slope_decade": round(float(r_temp.slope * 10), 2),
-    "temp_p": round(float(r_temp.pvalue), 3),
     "rain_years": [int(y) for y in nat_annual.index],
     "rain_mm": [round(float(v)) for v in nat_annual.values],
     "rain_trend": [round(float(r_nat.intercept + r_nat.slope * y)) for y in nat_annual.index],

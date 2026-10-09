@@ -20,8 +20,8 @@ The notebook's **Phase 0b** applies ten documented cleaning steps: profiling, ke
 app/
   streamlit_app.py      # the app (8 pages)
   risk_model.py         # scoring engine; reproduces the notebook (self-test: python app/risk_model.py)
-  ui.py                 # design system: colours, typography, chart template, accessible components
-  assets/               # logo (sidebar) and logo_icon (collapsed sidebar)
+  ui.py                 # design system: colours, typography, chart template, page components
+  assets/logo.svg       # app logo
 .streamlit/config.toml  # theme and settings
 nepal_climate_capstone_student_data/   # input data (climate_hazard.csv excluded from Git; see below)
 outputs/                # results produced by the notebook and read by the app

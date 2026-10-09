@@ -1,27 +1,26 @@
 [theme]
 base = "light"
-primaryColor = "#0072B2"
-backgroundColor = "#F4F7FB"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#334155"
-borderColor = "#6B7C8F"
+primaryColor = "#1F3A5F"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F5F8"
+textColor = "#14202B"
+borderColor = "#DDE2E7"
 showWidgetBorder = true
-baseRadius = "8px"
-buttonRadius = "8px"
-font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-headingFontWeights = [700, 600, 600]
-linkColor = "#0072B2"
-dataframeHeaderBackgroundColor = "#F1F5F9"
-chartCategoricalColors = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9"]
+baseRadius = "6px"
+buttonRadius = "6px"
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+headingFont = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap"
+headingFontWeights = [600, 600, 600]
+linkColor = "#2F4FA0"
+dataframeHeaderBackgroundColor = "#F3F5F8"
+chartCategoricalColors = ["#3B5BA9", "#B8243B", "#C9D1D9"]
 
 [theme.sidebar]
-backgroundColor = "#112B49"
-secondaryBackgroundColor = "#1B3A5F"
-textColor = "#FFFFFF"
-primaryColor = "#56B4E9"
-borderColor = "#6B88A8"
-showSidebarBorder = false
+backgroundColor = "#F7F8FA"
+secondaryBackgroundColor = "#FFFFFF"
+borderColor = "#DDE2E7"
+showSidebarBorder = true
 
 [client]
 toolbarMode = "viewer"
