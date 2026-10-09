@@ -18,6 +18,431 @@ def code(text):
 
 
 # ---------------------------------------------------------------------------
+# Data-cleaning toolkit: shown in full in the notebook AND written to cleaning_toolkit.py
+# so the same functions can be reused in other projects.
+TOOLKIT = r'''
+"""Reusable data-cleaning toolkit for pandas DataFrames.
+
+Each function does one check or one fix, so a cleaning process can be built step by step
+and every step can be shown and logged. Copy this file into any project and import it:
+
+    from cleaning_toolkit import *
+"""
+import numpy as np
+import pandas as pd
+
+
+class CleaningLog:
+    """Records every cleaning action (what, where, how many rows) so the process is auditable."""
+
+    def __init__(self):
+        self.rows = []
+
+    def add(self, dataset, step, action, rows_before=None, rows_after=None, note=""):
+        removed = None if rows_before is None or rows_after is None else rows_before - rows_after
+        self.rows.append({"dataset": dataset, "step": step, "action": action, "rows_before": rows_before,
+                          "rows_after": rows_after, "rows_removed": removed, "note": note})
+
+    def to_frame(self):
+        # "Int64" (capital I) = whole numbers that may be blank, so counts don't turn into decimals
+        return pd.DataFrame(self.rows).astype({"rows_before": "Int64", "rows_after": "Int64", "rows_removed": "Int64"})
+
+
+def profile(df):
+    """One row per column: data type, missing values, distinct values, min/max and an example value."""
+    out = pd.DataFrame({
+        "dtype": df.dtypes.astype(str),
+        "missing": df.isna().sum(),
+        "missing_pct": (df.isna().mean() * 100).round(1),
+        "unique": df.nunique(),
+    })
+    num = df.select_dtypes("number")
+    out["min"] = num.min()
+    out["max"] = num.max()
+    out["example"] = df.apply(lambda s: s.dropna().iloc[0] if s.notna().any() else None)
+    return out
+
+
+def standardize_text(s, case="upper", aliases=None):
+    """Trim spaces, collapse repeated spaces, set the case, then map known alternative spellings."""
+    s = s.astype("string").str.strip().str.replace(r"\s+", " ", regex=True)
+    s = {"upper": s.str.upper(), "lower": s.str.lower(), "title": s.str.title()}[case]
+    return s.replace(aliases or {})
+
+
+def key_mismatches(reference, others, col):
+    """Compare a join key across tables. Any value listed would be silently lost in a join."""
+    ref = set(reference[col].dropna())
+    rows = []
+    for name, df in others.items():
+        vals = set(df[col].dropna())
+        rows.append({"table": name, "missing_from_table": sorted(ref - vals), "not_in_reference": sorted(vals - ref)})
+    return pd.DataFrame(rows)
+
+
+def sentinel_counts(df, sentinels=(-999, -9999, -99, 9999)):
+    """Count placeholder codes that some systems use instead of a blank (NASA POWER uses -999)."""
+    num = df.select_dtypes("number")
+    counts = num.isin(sentinels).sum()
+    return counts[counts > 0]
+
+
+def useless_columns(df):
+    """Columns that carry no information: entirely empty, or the same value in every row."""
+    empty = [c for c in df.columns if df[c].isna().all()]
+    constant = [c for c in df.columns if c not in empty and df[c].nunique(dropna=False) == 1]
+    return {"empty": empty, "constant": constant}
+
+
+def exact_duplicates(df, subset=None):
+    """All rows that are repeated exactly (on every column, or only on `subset`)."""
+    return df[df.duplicated(subset=subset, keep=False)]
+
+
+def probable_duplicates(df, ignore):
+    """Rows identical in every column except those in `ignore` (e.g. an auto-generated ID).
+    Returns every member of each group, sorted so the copies sit next to each other."""
+    cols = [c for c in df.columns if c not in ignore]
+    return df[df.duplicated(subset=cols, keep=False)].sort_values(cols)
+
+
+def range_violations(df, rules):
+    """rules = {column: (lowest allowed, highest allowed)}; None = no limit. Counts rows outside the range."""
+    out = {}
+    for col, (lo, hi) in rules.items():
+        bad = pd.Series(False, index=df.index)
+        if lo is not None:
+            bad |= df[col] < lo
+        if hi is not None:
+            bad |= df[col] > hi
+        out[col] = int(bad.sum())
+    return pd.Series(out, name="rows_outside_range")
+
+
+def date_gaps(df, group, date_col, freq="D"):
+    """For each group: first date, last date, dates present, dates expected, and how many are missing."""
+    g = df.groupby(group)[date_col].agg(["min", "max", "count"])
+    g["expected"] = [len(pd.date_range(a, b, freq=freq)) for a, b in zip(g["min"], g["max"])]
+    g["missing_dates"] = g["expected"] - g["count"]
+    return g
+
+
+def identical_series(df, group, date_col, value):
+    """Give each group a fingerprint of its whole time series; groups with equal fingerprints are identical."""
+    wide = df.pivot(index=date_col, columns=group, values=value)
+    fingerprint = wide.apply(lambda s: pd.util.hash_pandas_object(s, index=False).sum())
+    return fingerprint.rank(method="dense").astype(int).rename("series_id")
+
+
+def utc_to_local(s, tz):
+    """Convert timestamps stored in UTC (without a timezone label) into local time for `tz`."""
+    return pd.to_datetime(s).dt.tz_localize("UTC").dt.tz_convert(tz).dt.tz_localize(None)
+'''.strip("\n")
+
+CLEANING_INTRO = r"""
+---
+# Phase 0b: Data cleaning (every step shown)
+
+**Concept: what "cleaning" means.** Cleaning is not making data look tidy. It is making sure every value we use is **correct, consistent and counted once**, and documenting everything we change. The rule is: *check → fix → prove the fix worked → log it*.
+
+We work through ten standard checks. They apply to almost any dataset:
+
+| Step | Check | Typical problem it catches |
+|---|---|---|
+| C1 | Profile every column | Wrong types, unexpected blanks, odd min/max |
+| C2 | Standardise text keys | Spelling and case differences that break joins |
+| C3 | Fix data types | Dates stored as text |
+| C4 | Missing values and placeholder codes | Blanks, `-999` codes, empty columns |
+| C5 | Duplicates | Records loaded or entered twice |
+| C6 | Valid ranges | Impossible values (negative rain, humidity > 100%) |
+| C7 | Internal consistency | Derived columns that don't match their inputs |
+| C8 | Time zones | Timestamps stored in the wrong time zone |
+| C9 | Columns with known errors | Variables that must not be used |
+| C10 | Cleaning log and save | An audit trail of every change |
+
+**The toolkit.** The functions below are general-purpose (nothing in them is specific to Nepal). They are also saved as `cleaning_toolkit.py`, so you can reuse them in other projects with `from cleaning_toolkit import *`.
+"""
+
+CLEANING_STEPS = [
+    ("md", r"""
+### C1: Profile every column
+**Concept: profiling.** Before changing anything, look at every column: its type, how many values are missing, how many distinct values, and its smallest and largest values. Most data problems are visible here if you look carefully.
+"""),
+    ("code", r"""
+log = CleaningLog()
+climate, expo, events, clusters = (raw[k].copy() for k in ["climate", "exposure", "events", "clusters"])
+
+for name, df in [("climate", climate), ("exposure", expo), ("events", events)]:
+    print(f"\n=== {name}: {len(df):,} rows x {df.shape[1]} columns")
+    display(profile(df))
+"""),
+    ("md", r"""
+**What the profile tells us (things to follow up):**
+- `climate.date` and `events.incident_date` are stored as **text**, not dates (step C3).
+- `climate.elevation_m` is **100% missing** (C4).
+- `events.estimated_loss_npr` is **mostly missing**; `people_affected`, `roads_destroyed` and `bridges_destroyed` have only one distinct value (C4, C9).
+- `slope_mean_deg` has a minimum around 86° and a maximum of 90°, which is physically implausible (C9).
+- `climate.rainfall_anomaly_pct` reaches over 20,000%, a sign of a poorly designed derived column (C9).
+- `exposure.annual_growth_rate_pct` has negative values. This is **plausible**: many hill districts are losing population to migration, so it is not an error.
+
+### C2: Standardise text keys
+**Concept: join keys.** To combine tables we match rows on a shared column (here `district_name`). The computer treats `RUKUM EAST` and `EASTERN RUKUM`, or `Achham` and `ACHHAM `, as **different** values, and rows that don't match are silently dropped. So we (1) trim spaces, (2) use one case, and (3) translate known alternative spellings.
+"""),
+    ("code", r"""
+print("BEFORE: names that would not match the exposure table")
+display(key_mismatches(expo, {"climate": climate, "events": events, "clusters": clusters}, "district_name"))
+
+ALIAS = {"EASTERN RUKUM": "RUKUM EAST", "WESTERN RUKUM": "RUKUM WEST"}
+for name, df in [("exposure", expo), ("climate", climate), ("events", events), ("clusters", clusters)]:
+    clean = standardize_text(df["district_name"], case="upper", aliases=ALIAS)
+    changed = int((clean != df["district_name"]).sum())
+    df["district_name"] = clean
+    log.add(name, "C2", "Standardise district names (trim, upper case, Rukum aliases)", len(df), len(df), f"{changed:,} values changed")
+
+# Other text columns: only trim stray spaces (their case is meaningful, so we leave it alone)
+for col in ["title", "hazard", "source"]:
+    tidy = events[col].str.strip().str.replace(r"\s+", " ", regex=True)
+    print(f"events.{col}: {int((tidy != events[col]).sum())} values had stray spaces")
+    events[col] = tidy
+
+print("AFTER:")
+mm = key_mismatches(expo, {"climate": climate, "events": events, "clusters": clusters}, "district_name")
+display(mm)
+assert mm.missing_from_table.str.len().eq(0).all() and mm.not_in_reference.str.len().eq(0).all(), "names still mismatch"
+print("All four tables now contain exactly the same", expo.district_name.nunique(), "district names.")
+"""),
+    ("md", r"""
+**Result:** before cleaning, the two Rukum districts would have been lost from every join. After cleaning, all 77 names match across all four files. The `assert` line is a **guard**: if a future data update reintroduces a mismatch, the notebook stops with an error instead of silently producing wrong results.
+
+### C3: Fix data types
+**Concept: data types.** A date stored as text can't be sorted chronologically, filtered by year or used in calculations. `pd.to_datetime(..., errors="coerce")` converts text to real dates. Anything it can't read becomes `NaT` ("not a time"), so we can **count** bad values instead of the code crashing.
+"""),
+    ("code", r"""
+print("Types before:", climate["date"].dtype, "|", events["incident_date"].dtype)
+climate["date"] = pd.to_datetime(climate["date"], format="%Y-%m-%d", errors="coerce")
+events["incident_date"] = pd.to_datetime(events["incident_date"], errors="coerce")
+print("Types after: ", climate["date"].dtype, "|", events["incident_date"].dtype)
+
+bad = {"climate dates": int(climate["date"].isna().sum()), "event dates": int(events["incident_date"].isna().sum())}
+print("Values that could not be read as dates:", bad)
+assert sum(bad.values()) == 0
+log.add("climate", "C3", "Convert 'date' from text to datetime", len(climate), len(climate), "0 unreadable")
+log.add("events", "C3", "Convert 'incident_date' from text to datetime", len(events), len(events), "0 unreadable")
+"""),
+    ("md", r"""
+### C4: Missing values, placeholder codes and empty columns
+**Concept: three kinds of "missing".**
+1. **Blank cells** (`NaN`): pandas sees these directly.
+2. **Placeholder codes**: some systems write `-999` instead of a blank. NASA POWER does this, and a `-999` mm rainfall day would wreck every average. pandas does **not** see these as missing, so we must look for them.
+3. **Useless columns**: completely empty, or the same value in every row.
+
+**Decision rules:**
+- An empty column is dropped, since it contains nothing.
+- A partly missing column we don't need is kept but not used. We do **not** fill gaps with made-up values (*imputation*) unless the analysis needs that column.
+"""),
+    ("code", r"""
+for name, df in [("climate", climate), ("exposure", expo), ("events", events)]:
+    miss = df.isna().sum()
+    print(f"\n{name}: missing values -> {miss[miss > 0].to_dict() or 'none'}")
+    print(f"{name}: placeholder codes (-999 etc.) -> {sentinel_counts(df).to_dict() or 'none'}")
+    print(f"{name}: useless columns -> {useless_columns(df)}")
+
+before = climate.shape[1]
+climate = climate.drop(columns=["elevation_m"])
+log.add("climate", "C4", "Drop empty column 'elevation_m' (100% missing)", len(climate), len(climate), f"columns {before} -> {climate.shape[1]}")
+print(f"\nestimated_loss_npr: {events.estimated_loss_npr.isna().mean():.0%} missing and only "
+      f"{(events.estimated_loss_npr > 0).mean():.0%} of events report a loss > 0, so it is kept but NOT used for validation.")
+log.add("events", "C4", "Keep 'estimated_loss_npr' but exclude from analysis (mostly missing)", len(events), len(events), "no rows removed")
+"""),
+    ("md", r"""
+**Result:** no `-999` placeholder codes anywhere. The only fully empty column (`elevation_m`) was dropped. The constant columns found here are handled in C9, because each needs its own explanation:
+- `household_size_used`: one national value.
+- `people_affected`, `roads_destroyed`, `bridges_destroyed`: 0 everywhere.
+- `verified`: `True` everywhere, so it is uninformative but harmless.
+
+### C5: Duplicates
+**Concept: two kinds of duplicate.**
+- **Exact duplicates:** the same row appears twice, usually because a batch was loaded twice. Always remove them.
+- **Probable duplicates:** different ID numbers, but **every other detail is identical**: same district, same day, same hazard, same title, and identical deaths, injuries, houses destroyed and rupee loss. These usually come from a report being entered twice, sometimes once by police and once by another agency. They inflate event counts.
+
+**Decision rule (deliberately conservative):** remove a record only if it matches another in **every column except `incident_id` and `source`**. Records at the same place and day that differ in **any** loss figure might be genuinely separate incidents (two landslides in one ward), so they are **kept**.
+"""),
+    ("code", r"""
+# Climate: one row per district per day?  Exposure: one row per district?
+print("climate rows repeating district+date:", int(climate.duplicated(["district_name", "date"]).sum()))
+print("exposure repeated district_id / name:", int(expo.district_id.duplicated().sum()), "/", int(expo.district_name.duplicated().sum()))
+
+# Events (a): exact duplicates
+ex = exact_duplicates(events)
+print(f"\nExact duplicate event rows: {len(ex)} rows involved")
+display(ex.sort_values("incident_id")[["incident_id", "title", "district_name", "incident_date", "hazard", "deaths"]])
+before = len(events)
+events = events.drop_duplicates()
+log.add("events", "C5", "Remove exact duplicate rows (a block of records loaded twice)", before, len(events))
+print(f"Removed {before - len(events)} exact duplicates")
+"""),
+    ("code", r"""
+# Events (b): probable duplicates = identical except for the ID and the reporting source
+IGNORE = ["incident_id", "source"]
+same = [c for c in events.columns if c not in IGNORE]
+prob = probable_duplicates(events, ignore=IGNORE)
+n_groups = prob.groupby(same, dropna=False).ngroups
+print(f"{len(prob):,} rows form {n_groups:,} groups of records identical in every detail except ID/source")
+print("Median gap between IDs within a group:",
+      prob.groupby(same, dropna=False).incident_id.agg(lambda s: s.max() - s.min()).median(), "(near-consecutive = entered twice)")
+print("\nExample group:")
+display(prob.head(4)[["incident_id", "source", "title", "district_name", "incident_date", "deaths", "injured", "houses_destroyed", "estimated_loss_npr"]])
+
+before, deaths_before = len(events), int(events.deaths.sum())
+events = events.drop_duplicates(subset=same, keep="first")
+log.add("events", "C5", "Remove probable double entries (identical except ID and source)", before, len(events),
+        f"deaths {deaths_before:,} -> {int(events.deaths.sum()):,}")
+print(f"Removed {before - len(events):,} probable double entries; recorded deaths {deaths_before:,} -> {int(events.deaths.sum()):,}")
+
+kept = events.duplicated(["district_name", "incident_date", "hazard", "title"], keep=False).sum()
+print(f"Kept {kept:,} records that share place/day/hazard/title but differ in at least one loss figure (possibly separate incidents)")
+"""),
+    ("md", r"""
+**Result:** a small share of event records were double-counted. Removing them changes district event counts slightly, and all results in Phase 6 use the de-duplicated data. Recorded deaths also fall a little, because some deaths were counted twice.
+
+**Limitation to state:** we can't tell for certain whether same-place, same-day records with *different* figures are separate incidents or updated reports of one incident. We kept them, which may still slightly over-count some events.
+
+### C6: Valid ranges (impossible values)
+**Concept: validity rules.** Write down what values are **physically possible**, then count rows that break the rules. For example, rainfall can't be negative, humidity can't exceed 100%, and a district's coordinates must lie inside Nepal (roughly 26.3–30.5°N, 80.0–88.3°E).
+"""),
+    ("code", r"""
+print("Climate:")
+display(range_violations(climate, {
+    "rainfall_mm": (0, 1000), "relative_humidity_pct": (0, 100), "wind_speed_ms": (0, 75),
+    "temperature_mean_c": (-60, 50), "latitude": (26.3, 30.5), "longitude": (80.0, 88.3)}).to_frame().T)
+print("days where min temperature > max temperature:", int((climate.temperature_min_c > climate.temperature_max_c).sum()))
+
+print("\nExposure:")
+display(range_violations(expo, {
+    "population": (1, None), "population_density_per_km2": (0, None), "hospital_count": (0, None), "school_count": (0, None),
+    "hydropower_capacity_mw": (0, None), "road_density_km_per_km2": (0, None), "area_km2_true": (1, None)}).to_frame().T)
+print("districts where elevation min > mean or mean > max:",
+      int(((expo.elevation_min_m > expo.elevation_mean_m) | (expo.elevation_mean_m > expo.elevation_max_m)).sum()))
+
+print("\nEvents:")
+loss_cols = ["deaths", "missing", "injured", "families_affected", "families_relocated", "houses_destroyed",
+             "houses_affected", "roads_destroyed", "bridges_destroyed"]
+display(range_violations(events, {c: (0, None) for c in loss_cols}).to_frame().T)
+print("events outside 2011-2026:", int((~events.incident_date.dt.year.between(2011, 2026)).sum()))
+log.add("all", "C6", "Range and logic checks", note="no violations found; nothing changed")
+"""),
+    ("md", r"""
+**Result:** every value is physically possible. The very cold temperatures (below −30 °C) are real: they come from high-Himalayan districts such as Mustang and Manang. **Passing a check is a result too**: the log records that we looked.
+
+### C7: Internal consistency
+**Concept: re-derive and compare.** Some columns are calculated from others: rolling rainfall totals, road density, the event year. If we recompute them ourselves and get the same answer, we can trust them. We also check that the climate record has **no missing days**, and we **verify the data dictionary's claim** that only 45 rainfall series are unique, rather than taking it on trust.
+"""),
+    ("code", r"""
+c = climate.sort_values(["district_name", "date"])
+for window in (3, 7):
+    recomputed = c.groupby("district_name").rainfall_mm.transform(lambda s: s.rolling(window, min_periods=1).sum())
+    print(f"rainfall_{window}day_mm: largest difference from our recomputation = {(recomputed - c[f'rainfall_{window}day_mm']).abs().max():.6f} mm")
+
+print("road density: largest difference =", round((expo.road_length_km / expo.area_km2_true - expo.road_density_km_per_km2).abs().max(), 6))
+print("event 'year' column disagrees with the date in", int((events.year != events.incident_date.dt.year).sum()), "rows")
+
+gaps = date_gaps(climate, "district_name", "date")
+print(f"climate: {int(gaps.missing_dates.sum())} missing days across all districts "
+      f"({gaps['min'].min().date()} to {gaps['max'].max().date()})")
+
+sid = identical_series(climate, "district_name", "date", "rainfall_mm")
+check = clusters.set_index("district_name").join(sid)
+consistent = (check.groupby("climate_grid_cluster").series_id.nunique() == 1).all() and \
+             (check.groupby("series_id").climate_grid_cluster.nunique() == 1).all()
+print(f"unique rainfall series found: {sid.nunique()} | matches climate_grid_clusters.csv exactly: {consistent}")
+
+area_diff = (expo.area_km2_estimated / expo.area_km2_true - 1) * 100
+print(f"area_km2_estimated differs from the true area by up to {area_diff.abs().max():.0f}% -> we use area_km2_true")
+log.add("all", "C7", "Consistency checks (rolling sums, road density, year, missing days, 45 series)", note="all consistent")
+"""),
+    ("md", r"""
+**Result:**
+- The derived columns match our recomputation.
+- There are no missing days in the climate record.
+- We independently confirmed that there are exactly **45 unique rainfall series** and that they match the cluster file.
+- The *estimated* area differs from the *true* area by up to about 20%, so only `area_km2_true` is used.
+
+### C8: Time zones
+**Concept: UTC vs local time.** Databases often store times in **UTC** (Coordinated Universal Time). Nepal is **UTC+5:45**. Every event timestamp in the file is exactly **18:15**. That is midnight in Nepal, written in UTC as 18:15 on the *previous day*. Left uncorrected, **every event date would be one day early**, which matters when matching events to a specific date such as 26 August.
+"""),
+    ("code", r"""
+print("Clock times in the raw data:", events.incident_date.dt.strftime("%H:%M").value_counts().to_dict())
+before_dates = events.incident_date.copy()
+events["incident_date"] = utc_to_local(events["incident_date"], "Asia/Kathmandu")
+events["year"] = events.incident_date.dt.year
+print("Clock times after conversion:", events.incident_date.dt.strftime("%H:%M").value_counts().to_dict())
+print("Example:", before_dates.iloc[0], "UTC  ->", events.incident_date.iloc[0], "Nepal time")
+moved_year = int((before_dates.dt.year != events.year).sum())
+log.add("events", "C8", "Convert incident_date from UTC to Nepal time (UTC+5:45)", len(events), len(events),
+        f"all dates move +1 day; {moved_year} event(s) change year")
+"""),
+    ("md", r"""
+**Assumption (stated):** the timestamps are UTC. The evidence is that every single one is 18:15, which is exactly Nepal midnight in UTC; a real reporting time would vary.
+
+### C9: Columns with known errors: excluded
+Some columns are **present but wrong**. Keeping them in the cleaned table invites someone to use them by mistake, so we show the evidence and then remove them.
+"""),
+    ("code", r"""
+print("slope_mean_deg (should vary from ~0 to ~40 deg for real terrain):")
+print(expo.slope_mean_deg.describe()[["mean", "std", "min", "max"]].round(3).to_dict())
+for col in ["people_affected", "roads_destroyed", "bridges_destroyed"]:
+    print(f"{col} distinct values:", events[col].unique())
+print("household_size_used distinct values:", expo.household_size_used.unique())
+print("rainfall_anomaly_pct range:", climate.rainfall_anomaly_pct.min(), "to", round(climate.rainfall_anomaly_pct.max()), "(flat all-time mean, not seasonal)")
+
+DROP = {
+    "exposure": ["slope_mean_deg", "slope_max_deg", "slope_std_deg",          # unit error, saturated near 90 deg
+                 "household_size_used", "households_estimated",               # one national constant, no district information
+                 "area_km2_estimated"],                                        # superseded by area_km2_true
+    "events": ["people_affected", "roads_destroyed", "bridges_destroyed"],     # 0 for every event (reporting gaps)
+    "climate": ["rainfall_anomaly_pct"],                                       # crude; we compute proper anomalies in Phase 1
+}
+expo = expo.drop(columns=DROP["exposure"])
+events = events.drop(columns=DROP["events"])
+climate = climate.drop(columns=DROP["climate"])
+for name, df in [("exposure", expo), ("events", events), ("climate", climate)]:
+    log.add(name, "C9", "Drop columns with known errors: " + ", ".join(DROP[name]), len(df), len(df), "columns only; no rows removed")
+print("\nColumns remaining -> climate:", climate.shape[1], "| exposure:", expo.shape[1], "| events:", events.shape[1])
+"""),
+    ("md", r"""
+### C10: Cleaning log and cleaned files
+**Concept: audit trail.** Anyone (an instructor, a colleague, you in six months) should be able to see exactly what changed and why, without re-reading all the code. The log is that record. We also save the cleaned tables so the app and later work use the *same* clean data.
+"""),
+    ("code", r"""
+summary = pd.DataFrame({
+    "rows_raw": {k: len(raw[k]) for k in ["climate", "exposure", "events"]},
+    "rows_clean": {"climate": len(climate), "exposure": len(expo), "events": len(events)},
+    "cols_raw": {k: raw[k].shape[1] for k in ["climate", "exposure", "events"]},
+    "cols_clean": {"climate": climate.shape[1], "exposure": expo.shape[1], "events": events.shape[1]},
+})
+display(summary)
+cleaning_log = log.to_frame()
+with pd.option_context("display.max_colwidth", 90):
+    display(cleaning_log)
+
+CLEAN = os.path.join(OUT, "clean")
+os.makedirs(CLEAN, exist_ok=True)
+expo.to_csv(f"{CLEAN}/exposure_vulnerability_clean.csv", index=False)
+events.to_csv(f"{CLEAN}/disaster_events_clean.csv", index=False)
+clusters.to_csv(f"{CLEAN}/climate_grid_clusters_clean.csv", index=False)
+cleaning_log.to_csv(f"{CLEAN}/cleaning_log.csv", index=False)
+print("Saved cleaned exposure, events, clusters and the cleaning log to", CLEAN,
+      "(the 1M-row climate table is re-created by running this notebook)")
+"""),
+    ("md", r"""
+**How to say it:** *"We profiled every column, standardised the join keys, fixed the data types, checked for missing values and placeholder codes, removed 6 exact and 171 probable duplicate disaster records (12,518 to 12,341), confirmed every value was physically possible, re-derived calculated columns, corrected a time-zone error that shifted every event by a day, and dropped columns with known errors. Every step is in the cleaning log."*
+
+All later phases use these cleaned tables.
+"""),
+]
+
+
+# ---------------------------------------------------------------------------
 md(r"""
 # Nepal Climate Risk & Resilience Assessment
 ### District-level risk index, validation against disaster history, and a USD 100M investment recommendation
@@ -57,7 +482,7 @@ A huge landslide on an empty mountainside is *hazard without exposure*, so low r
 3. Exposure: people & infrastructure
 4. Vulnerability: access & health capacity
 5. Composite risk score
-6. **Validation** against 12,518 recorded disasters (the most important phase)
+6. **Validation** against Nepal's disaster record: 12,518 records, 12,341 after removing duplicates (the most important phase)
 7. USD 100M investment recommendation
 8. Outputs for the presentation
 """)
@@ -114,20 +539,21 @@ $$\text{Score} = \frac{x - \min}{\max - \min} \times 100$$
 
 The lowest district gets 0, the highest gets 100, everyone else falls in between. Note that a score is **relative**: 0 means "lowest in Nepal", not "no risk at all".
 
-### Load the four files
+### Load the four files (raw, untouched)
+We load everything **as text and numbers exactly as stored**, without converting dates yet. Keeping an untouched copy (`raw`) lets us compare *before* and *after* every cleaning step, and go back if a step turns out to be wrong.
 """)
 
 code(r"""
-climate = pd.read_csv(f"{DATA}/climate_hazard.csv", parse_dates=["date"])
-expo = pd.read_csv(f"{DATA}/exposure_vulnerability.csv")
-events = pd.read_csv(f"{DATA}/disaster_events.csv", parse_dates=["incident_date"])
-clusters = pd.read_csv(f"{DATA}/climate_grid_clusters.csv")
+raw = {
+    "climate": pd.read_csv(f"{DATA}/climate_hazard.csv"),
+    "exposure": pd.read_csv(f"{DATA}/exposure_vulnerability.csv"),
+    "events": pd.read_csv(f"{DATA}/disaster_events.csv"),
+    "clusters": pd.read_csv(f"{DATA}/climate_grid_clusters.csv"),
+}
 dictionary = pd.read_csv(f"{DATA}/data_dictionary.csv")
 
-for name, df in [("climate", climate), ("exposure", expo), ("events", events), ("clusters", clusters)]:
+for name, df in raw.items():
     print(f"{name:9s} rows={len(df):>9,}  columns={df.shape[1]}")
-print("climate date range:", climate.date.min().date(), "->", climate.date.max().date())
-print("events  date range:", events.incident_date.min().date(), "->", events.incident_date.max().date())
 """)
 
 md(r"""
@@ -154,21 +580,13 @@ md(r"""
 | `people_affected` is 0 for every event | Not used; we validate with event counts and deaths |
 | Household size is a national constant (4.37) | `households_estimated` not used (it adds no district information) |
 
-### Fix the Rukum naming so tables join correctly
-**Concept: joining.** Joining (merging) two tables means matching rows that refer to the same thing, here the same district. If one table says `RUKUM EAST` and another says `EASTERN RUKUM`, the computer treats them as different districts and silently drops them. We translate the names first.
+The data dictionary lists the *known* problems. A careful analyst also **checks for unknown ones**. That is the job of the next phase.
 """)
 
-code(r"""
-ALIAS = {"EASTERN RUKUM": "RUKUM EAST", "WESTERN RUKUM": "RUKUM WEST"}
-for df in (climate, events, clusters):
-    df["district_name"] = df["district_name"].replace(ALIAS)
-expo["district_name"] = expo["district_name"].str.upper()
-
-# Every file should now contain the same 77 names.
-names = set(expo.district_name)
-for label, df in [("climate", climate), ("events", events), ("clusters", clusters)]:
-    print(f"{label:8s} unmatched names: {set(df.district_name) ^ names or 'none'}")
-""")
+md(CLEANING_INTRO)
+code(TOOLKIT)
+for kind, text in CLEANING_STEPS:
+    (md if kind == "md" else code)(text)
 
 # ---------------------------------------------------------------------------
 md(r"""
@@ -405,8 +823,10 @@ We use `elevation_std_m` because the slope columns are broken. Let's prove that 
 """)
 
 code(r"""
-print(expo[["slope_mean_deg", "elevation_std_m"]].describe().loc[["mean", "std", "min", "max"]])
-ax = expo.plot.scatter("elevation_std_m", "slope_mean_deg", alpha=0.7)
+# The slope columns were removed in cleaning step C9, so this demonstration uses the raw table.
+raw_expo = raw["exposure"]
+print(raw_expo[["slope_mean_deg", "elevation_std_m"]].describe().loc[["mean", "std", "min", "max"]])
+ax = raw_expo.plot.scatter("elevation_std_m", "slope_mean_deg", alpha=0.7)
 ax.set(title="Slope column is saturated near 90 deg; elevation std still varies a lot",
        xlabel="elevation std (m)", ylabel="'mean slope' (deg)")
 savefig("04_slope_bug.png")
@@ -655,11 +1075,13 @@ md(r"""
 Until now, our index is a **hypothesis**: "these districts are riskiest". Now we test it against 15 years of real recorded disasters. A model that doesn't match reality must be reported honestly, **not tweaked until it looks good**. Tweaking until the numbers fit is called *overfitting* or "p-hacking", and the brief explicitly forbids it.
 
 ### Step 6.1: Aggregate events to districts
-**Decision: hazard categories.** `Flood` events count as floods, `Landslide` as landslides. `Heavy Rainfall` (3,321 events) and `Avalanche` (46) are counted in the total but not in either specific category, because "heavy rainfall" events could be either hazard and we won't guess.
+**Decision: hazard categories.** `Flood` events count as floods, `Landslide` as landslides. `Heavy Rainfall` and `Avalanche` events (counts printed below) are counted in the total but not in either specific category, because "heavy rainfall" events could be either hazard and we won't guess.
 """)
 
 code(r"""
-ev = events.copy()
+ev = events.copy()   # the cleaned events table from Phase 0b
+print(f"Events after cleaning: {len(ev):,} (raw file: {len(raw['events']):,})")
+print("By hazard:", ev.hazard.value_counts().to_dict())
 agg = ev.groupby("district_name").agg(
     events_total=("incident_id", "size"),
     deaths=("deaths", "sum"),
@@ -820,19 +1242,19 @@ md(r"""
 """)
 
 md(r"""
-**F7. The combined index has moderate, significant agreement with reality.** Combined risk vs total events ρ = **0.39**, vs deaths ρ = **0.42** (both p < 0.01). That is useful, but far from perfect.
+**F7. The combined index has moderate, significant agreement with reality.** Combined risk vs total events ρ = **0.39**, vs deaths ρ = **0.43** (both p < 0.01). That is useful, but far from perfect.
 
-**F8. The landslide index validates well.** Landslide risk vs landslide events ρ = **0.53**, vs deaths ρ = **0.51**. In the regression, **terrain ruggedness is by far the strongest driver** of landslide counts (coefficient +1.09, p < 0.01, R² = 0.50). Our model explains about half of the district differences, which is good for purely structural data.
+**F8. The landslide index validates well.** Landslide risk vs landslide events ρ = **0.52**, vs deaths ρ = **0.51**. In the regression, **terrain ruggedness is by far the strongest driver** of landslide counts (coefficient +1.08, p < 0.01, R² = 0.49). Our model explains about half of the district differences, which is good for purely structural data.
 
 **F9. The flood index fails validation, and we can explain why.**
-- Flood risk vs flood events: ρ = only **0.23**. The flood *hazard* score alone is unrelated to flood events (ρ ≈ −0.09).
-- The districts with the most recorded floods (Jhapa, Morang, Sunsari, Rautahat, Kailali) are **flat Terai lowlands**. Flood counts correlate *negatively* with ruggedness and *positively* with exposure (ρ = 0.38) and road density (ρ = 0.32).
+- Flood risk vs flood events: ρ = only **0.24**. The flood *hazard* score alone is unrelated to flood events (ρ ≈ −0.08).
+- The districts with the most recorded floods (Jhapa, Morang, Kathmandu, Sunsari, Kailali) are mostly **flat Terai lowlands**, plus the densely populated Kathmandu Valley. Flood counts correlate *negatively* with ruggedness and *positively* with exposure (ρ = 0.38) and road density (ρ = 0.32).
 - **Most likely explanation: an incorrect/missing variable, not wrong weights.** Our flood hazard measures mountain hydrology (big rivers, rainfall). Lowland floods happen where large rivers *leave* the mountains and spread across flat, densely populated plains, and no variable captures that. Floodplain flatness and water depth data are missing.
 - Part of the pattern is also **reporting**: flood events are recorded more where roads and people are.
 - As the brief instructs, we **report this rather than re-tuning the index**.
 
 **F10. The event record has a serious reporting problem.**
-- Recorded events rose from about 500–800 a year to **~2,000 a year** after 2023, while deaths per event fell from ~0.5 to **0.04**. That pattern means many more minor incidents are being logged: a change in *reporting*, not a 4× rise in disasters.
+- Recorded events rose from about 500–800 a year to **~2,000 a year** after 2023, while deaths per event fell from ~0.5 to **0.04** (pattern unchanged after removing duplicates in Phase 0b). That pattern means many more minor incidents are being logged: a change in *reporting*, not a 4× rise in disasters.
 - **The 26 Aug 2026 glacier collapse, the event that prompted this assessment, is missing.** The corridor districts show only six minor events with zero deaths in the following ten days, despite reported significant loss of life.
 - The file contains **no glacial lake outburst records at all**.
 
@@ -840,9 +1262,9 @@ md(r"""
 
 ### Decision: separate hazard-specific indices (required methodological decision)
 Evidence:
-1. Flood and landslide events occur in **different places** (ρ = −0.14 between them). One number cannot rank both well.
-2. The **landslide index beats the combined index** on landslides (0.53 vs 0.47).
-3. The **flood index beats the combined index** on floods (0.23 vs 0.12), although both are weak.
+1. Flood and landslide events occur in **different places** (ρ = −0.13 between them). One number cannot rank both well.
+2. The **landslide index beats the combined index** on landslides (0.52 vs 0.47).
+3. The **flood index beats the combined index** on floods (0.24 vs 0.12), although both are weak.
 4. The combined index's apparent success is **almost entirely its landslide component**: it scores 0.47 on landslides but only 0.12 on floods.
 
 So a single combined index would hide the fact that we predict landslides reasonably well and floods poorly. **We use separate flood and landslide indices**, and treat the flood index as low-confidence.
@@ -894,7 +1316,7 @@ md(r"""
 
 | Line | USD M | Why this size |
 |---|---|---|
-| 1a Landslide early warning | **18** | Our best-validated finding (F8, ρ = 0.53). Landslides are the most frequent recorded hazard (6,114 events) and rain extremes are rising (F2) |
+| 1a Landslide early warning | **18** | Our best-validated finding (F8, ρ = 0.52). Landslides are the most frequent recorded hazard (6,050 events after cleaning) and rain extremes are rising (F2) |
 | 1b Flood early warning | **10** | Floods are frequent in the Terai (F9), but our index can't rank them, so funding is limited to proven hotspots |
 | 2 Terrain & glacial monitoring | **22** | The 26 Aug disaster was a glacial collapse (F3) that our index and the event record both missed (F10, F11). Ruggedness is the strongest single predictor (F8) |
 | 3 Infrastructure reinforcement | **20** | Protects concentrated exposure (F5), including the hydropower assets damaged on 26 Aug |
@@ -1041,7 +1463,10 @@ md(r"""
 | 10 | Vulnerability = equal mean of road-access and health-capacity scores | Phase 4 |
 | 11 | Risk = geometric mean of H, E, V with components floored at 1 | Phase 5 |
 | 12 | Flood = `Flood` events; landslide = `Landslide`; Heavy Rainfall and Avalanche only in totals | Phase 6 |
-| 13 | No missing values in exposure file; no imputation was needed | Phase 0 |
+| 13 | No missing values in exposure file; no imputation was needed | Phase 0b C4 |
+| 14 | Event records identical in every field except ID and source are double entries and removed; records differing in any loss figure are kept | Phase 0b C5 |
+| 15 | Event timestamps are UTC and are converted to Nepal time (UTC+5:45) | Phase 0b C8 |
+| 16 | Columns with known errors are dropped (slope, household constants, estimated area, all-zero event columns, rainfall_anomaly_pct) | Phase 0b C9 |
 
 # Data sources (as documented in the data dictionary)
 - **NASA POWER** (power.larc.nasa.gov): daily rainfall (PRECTOTCORR), temperature, humidity, wind
@@ -1058,3 +1483,7 @@ nb["cells"] = cells
 nb["metadata"]["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
 nbf.write(nb, "nepal_risk_assessment.ipynb")
 print(f"wrote nepal_risk_assessment.ipynb with {len(cells)} cells")
+
+with open("cleaning_toolkit.py", "w", encoding="utf-8") as f:
+    f.write(TOOLKIT + "\n")
+print("wrote cleaning_toolkit.py")

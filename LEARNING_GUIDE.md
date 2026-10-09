@@ -12,7 +12,7 @@ On 26 August 2026 a glacier collapse caused a deadly flash flood in Nepal's Bhot
 
 We answered in three moves:
 1. **Measure** risk in every district by combining **hazard** (rain, steep terrain, rivers), **exposure** (people and infrastructure), and **vulnerability** (roads, hospitals).
-2. **Test** that measurement against 12,518 real disasters recorded from 2011 to 2026.
+2. **Test** that measurement against 12,341 real disasters recorded from 2011 to 2026 (12,518 records before removing duplicates).
 3. **Recommend** how to spend $100M, with every dollar linked to a specific finding.
 
 The most important lesson is that **the test only partly passed**. We can predict *landslides* reasonably well, but not *floods*. And the disaster record itself is missing the August 2026 event. A good analyst reports this honestly and designs the investment around it.
@@ -47,10 +47,42 @@ The most important lesson is that **the test only partly passed**. We can predic
 
 ## 3. How the project was built (step by step)
 
-### Phase 0: Load and clean
-- Loaded 4 CSV files: climate (1 million daily rows), exposure (77 districts × 32 columns), disaster events (12,518 rows), and climate clusters.
+### Phase 0: Load the data
+- Loaded 4 CSV files: climate (1 million daily rows), exposure (77 districts × 32 columns), disaster events (12,518 rows), and climate clusters. An untouched copy (`raw`) is kept for before/after comparisons.
 - **Read the data dictionary first**, as the brief requires. Several columns have known problems.
-- Fixed a naming mismatch: "RUKUM EAST" vs "EASTERN RUKUM". Without this, two districts silently disappear when joining tables.
+
+### Phase 0b: Data cleaning (ten steps, all shown in the notebook)
+The rule for every step: **check → fix → prove the fix worked → log it.**
+
+| Step | What we checked | What we found | What we did |
+|---|---|---|---|
+| **C1 Profile** | Type, missing values, distinct values, min/max of every column | Dates stored as text; an empty column; implausible slope values; constant columns | Listed follow-ups for the steps below |
+| **C2 Text keys** | Do district names match across all 4 files? | **Rukum East/West** spelled differently; **Kapilvastu** in different capitalisation | Trimmed spaces, upper case, alias table → all 77 match (guarded by an `assert`) |
+| **C3 Data types** | Are dates real dates? | Both date columns were text | Converted with `pd.to_datetime(errors="coerce")`; 0 unreadable |
+| **C4 Missing values** | Blanks, `-999` placeholder codes, empty/constant columns | `elevation_m` 100% empty; `estimated_loss_npr` 77% missing; no `-999` codes | Dropped the empty column; kept but didn't use the loss column; **no made-up values** |
+| **C5 Duplicates** | Repeated rows, and records identical except their ID | **6 exact duplicates** (a batch loaded twice) + **171 double entries** | Removed them: 12,518 → **12,341 events**; deaths 3,251 → 3,205 |
+| **C6 Valid ranges** | Impossible values (negative rain, humidity > 100%, points outside Nepal) | None | Logged that we checked |
+| **C7 Consistency** | Recompute derived columns; missing days; verify "45 unique rain series" | All consistent; 45 confirmed independently | Use `area_km2_true` (the estimate is off by up to 23%) |
+| **C8 Time zone** | Clock times of events | Every timestamp is **18:15 UTC = midnight in Nepal** → dates one day early | Converted to Nepal time (UTC+5:45) |
+| **C9 Known-bad columns** | Columns flagged in the dictionary | Slope (unit error), household constants, all-zero event columns, crude anomaly | Showed the evidence, then dropped them |
+| **C10 Log & save** | | | Saved `outputs/clean/*.csv` and `cleaning_log.csv` (the audit trail) |
+
+**Did cleaning change the results?** Only slightly, and no conclusion changed. The landslide correlation moved 0.53 → 0.52 and the flood correlation 0.23 → 0.24. Saying this is a strength: it shows the findings are **robust** to data errors.
+
+**Key concepts to be able to explain:**
+- **Exact vs probable duplicates.** Exact duplicates are the same row twice. Probable duplicates have different IDs but every other detail is identical. We removed a record only if **everything** matched (conservative), and kept same-day records that differ in any figure, because they might be separate incidents.
+- **Imputation** means filling gaps with estimated values. We avoided it, because no column we needed had gaps.
+- **Placeholder codes** like `-999` look like numbers, so pandas won't treat them as missing. Always search for them.
+- **UTC vs local time.** A constant odd clock time (18:15 for every event) is a classic sign of a time-zone conversion.
+- **`assert`** is a guard that stops the notebook if a cleaning step didn't work, instead of silently producing wrong results.
+
+**Your reusable toolkit:** `cleaning_toolkit.py` holds 12 general-purpose functions: `profile`, `standardize_text`, `key_mismatches`, `sentinel_counts`, `useless_columns`, `exact_duplicates`, `probable_duplicates`, `range_violations`, `date_gaps`, `identical_series`, `utc_to_local`, and `CleaningLog`. Copy the file into any project and use:
+```python
+from cleaning_toolkit import *
+log = CleaningLog()
+display(profile(df))                       # step 1 on any new dataset
+df["name"] = standardize_text(df["name"])  # before any join
+```
 
 ### Phase 1: Climate
 1. **Spotted a fake jump.** Rainfall doubles in 2004 because NASA changed its data source. So all trends use **2004–2025** only. 2026 is excluded from yearly totals because the data stops on 30 August.
@@ -98,13 +130,13 @@ The most important lesson is that **the test only partly passed**. We can predic
 | **F4** | 8 districts combine steep terrain and big rivers | Gorkha, Sankhuwasabha, Ramechhap, Dhading, Mugu, Humla, Rukum West, Kalikot |
 | **F5** | Exposure is concentrated in cities and hydropower hubs | Kathmandu, Kaski, Lalitpur…; Dolakha has 587 MW |
 | **F6** | Vulnerability is highest in remote mountains | Taplejung, Darchula, Bajura: one or two hospitals for 100k+ people, very few roads |
-| **F7** | The combined index moderately matches reality | ρ = 0.39 with events, 0.42 with deaths |
-| **F8** | The **landslide index works** | ρ = 0.53; ruggedness is the strongest predictor; R² = 0.50 |
-| **F9** | The **flood index fails**, for an explainable reason | ρ = 0.23. Floods are recorded on the flat Terai plains (Jhapa, Morang, Sunsari), which our mountain-river variables don't describe |
+| **F7** | The combined index moderately matches reality | ρ = 0.39 with events, 0.43 with deaths |
+| **F8** | The **landslide index works** | ρ = 0.52; ruggedness is the strongest predictor; R² = 0.49 |
+| **F9** | The **flood index fails**, for an explainable reason | ρ = 0.24. Floods are recorded on the flat Terai plains (Jhapa, Morang, Sunsari) and in Kathmandu, which our mountain-river variables don't describe |
 | **F10** | The disaster record has reporting problems | Events ×4 after 2023 while deaths per event fell 0.5 → 0.04; **the 26 Aug disaster is missing** |
 | **F11** | The index can't see glacial risk | Event corridor ranks only #21 (Sindhupalchok) and #47 (Rasuwa) |
 
-**Methodological decision:** use **separate flood and landslide indices**. Flood and landslide events happen in different places (ρ = −0.14), and each specific index beats the combined index on its own hazard.
+**Methodological decision:** use **separate flood and landslide indices**. Flood and landslide events happen in different places (ρ = −0.13), and each specific index beats the combined index on its own hazard.
 
 **Investment ($100M):**
 
@@ -141,7 +173,7 @@ Aim for about 1.5 minutes per slide, around 25 minutes in total. The condensed v
 3. **Terrain & rivers.** "We measured terrain by how much elevation varies, because the supplied slope data is broken. Eight districts combine extreme terrain with big rivers."
 4. **Exposure.** "People and critical assets concentrate in Kathmandu Valley, Pokhara, the southern plains, and hydropower districts like Dolakha."
 5. **The risk index.** "Risk is the geometric mean of hazard, exposure and vulnerability. It's only high where all three meet. The top districts are Myagdi, Darchula, Taplejung, Sankhuwasabha…"
-6. **Validation.** "We tested it against 12,500 recorded disasters. Landslides: it works, and steep terrain explains half the variation. Floods: it doesn't, because floods happen on the flat plains. And the record itself is incomplete: the August disaster is missing. So we use separate flood and landslide indices."
+6. **Validation.** "We tested it against over 12,000 recorded disasters. Landslides: it works, and steep terrain explains half the variation. Floods: it doesn't, because floods happen on the flat plains. And the record itself is incomplete: the August disaster is missing. So we use separate flood and landslide indices."
 7. **Recommendation.** "Money follows evidence. We fund early warning where the model is validated, and monitoring and data where it revealed blind spots."
 
 ---

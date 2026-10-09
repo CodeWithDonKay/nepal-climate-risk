@@ -2,15 +2,18 @@
 
 **Live app:** https://nepal-climate-risk.streamlit.app
 
-An interactive Streamlit app and analysis notebook that assess climate-disaster risk across Nepal's 77 districts. The risk index is tested against 12,518 recorded disasters (2011–2026), and the project ends with a traceable USD 100 million resilience recommendation.
+An interactive Streamlit app and analysis notebook that assess climate-disaster risk across Nepal's 77 districts. The risk index is tested against 12,341 recorded disasters (2011–2026, after removing duplicate records), and the project ends with a traceable USD 100 million resilience recommendation.
 
 **Core idea:** Risk = Hazard × Exposure × Vulnerability, scored per district, then validated against Nepal's own disaster history (BIPAD Portal).
 
 ## Key findings
 - Rainfall has risen about **22 mm/year since 2004**; extreme-rain days are up **~49%**.
-- The **landslide index validates well** (ρ = 0.53 with recorded landslides); terrain ruggedness is the strongest driver.
-- The **flood index does not** (ρ = 0.23): recorded floods concentrate on the flat Terai plains, which the available variables don't describe.
+- The **landslide index validates well** (ρ = 0.52 with recorded landslides); terrain ruggedness is the strongest driver.
+- The **flood index does not** (ρ = 0.24): recorded floods concentrate on the flat Terai plains, which the available variables don't describe.
 - The **26 Aug 2026 glacier collapse is missing** from the disaster record, and glacial hazard is invisible to the data, so part of the budget goes to monitoring and data.
+
+## Data cleaning
+The notebook's **Phase 0b** applies ten documented cleaning steps: profiling, key standardisation, type fixes, missing values and placeholder codes, duplicates, range checks, consistency checks, a UTC → Nepal time-zone correction, and removal of known-bad columns. Each is logged in `outputs/clean/cleaning_log.csv`. Main changes: 177 duplicate disaster records removed (12,518 → 12,341), all event dates corrected to Nepal time, and 11 unusable columns dropped.
 
 ## Project structure
 ```
@@ -20,6 +23,8 @@ app/
 .streamlit/config.toml  # theme and settings
 nepal_climate_capstone_student_data/   # input data (climate_hazard.csv excluded from Git; see below)
 outputs/                # results produced by the notebook and read by the app
+  clean/                # cleaned data tables + cleaning_log.csv (audit trail of every cleaning step)
+cleaning_toolkit.py     # reusable data-cleaning functions (also shown in the notebook, Phase 0b)
 nepal_risk_assessment.ipynb  # full documented analysis
 build_notebook.py       # generates the notebook
 deck/                   # optional slide-deck builder (Node.js)

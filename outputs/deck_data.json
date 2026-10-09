@@ -391,8 +391,8 @@
   "labels": [
    "Jhapa",
    "Morang",
-   "Sunsari",
    "Kathmandu",
+   "Sunsari",
    "Kailali"
   ]
  },
@@ -402,12 +402,12 @@
    "landslide_events": 0.47
   },
   "flood index": {
-   "flood_events": 0.23,
+   "flood_events": 0.24,
    "landslide_events": 0.1
   },
   "landslide index": {
    "flood_events": 0.02,
-   "landslide_events": 0.53
+   "landslide_events": 0.52
   }
  },
  "events_years": [
@@ -429,30 +429,30 @@
   2026
  ],
  "events_n": [
-  481,
-  284,
-  426,
-  163,
-  95,
-  576,
-  603,
-  647,
-  764,
+  464,
+  268,
+  420,
+  162,
+  80,
+  561,
+  569,
+  645,
+  762,
   943,
-  852,
+  851,
   554,
-  832,
-  1976,
-  1370,
-  1952
+  825,
+  1964,
+  1362,
+  1911
  ],
  "deaths_per_event": [
-  0.51,
-  0.31,
+  0.52,
+  0.33,
   0.54,
-  1.6,
-  1.46,
-  0.45,
+  1.61,
+  1.65,
+  0.44,
   0.41,
   0.19,
   0.23,
@@ -465,8 +465,8 @@
   0.04
  ],
  "flood_corr": {
-  "Flood hazard score": -0.09,
-  "Terrain ruggedness": -0.27,
+  "Flood hazard score": -0.08,
+  "Terrain ruggedness": -0.26,
   "Road density": 0.32,
   "Exposure score": 0.38
  },
@@ -486,7 +486,7 @@
    "line": "1b Flood early warning",
    "usd": 10,
    "findings": "F9",
-   "targets": "Jhapa, Morang, Sunsari, Kathmandu, Kailali"
+   "targets": "Jhapa, Morang, Kathmandu, Sunsari, Kailali"
   },
   {
    "line": "2 Terrain & glacial monitoring",
@@ -510,7 +510,7 @@
    "line": "5 Data infrastructure",
    "usd": 15,
    "findings": "F9, F10, F11",
-   "targets": "Surkhet, Parasi, Parbat, Nawalpur, Bardiya, Mugu, Salyan, Rukum East, Ramechhap, Gorkha"
+   "targets": "Surkhet, Parasi, Parbat, Bardiya, Nawalpur, Mugu, Salyan, Ramechhap, Rukum East, Doti"
   }
  ]
 }

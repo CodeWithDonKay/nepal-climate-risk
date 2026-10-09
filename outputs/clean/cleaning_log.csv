@@ -1,0 +1,17 @@
+dataset,step,action,rows_before,rows_after,rows_removed,note
+exposure,C2,"Standardise district names (trim, upper case, Rukum aliases)",77,77,0,3 values changed
+climate,C2,"Standardise district names (trim, upper case, Rukum aliases)",1031107,1031107,0,"26,782 values changed"
+events,C2,"Standardise district names (trim, upper case, Rukum aliases)",12518,12518,0,324 values changed
+clusters,C2,"Standardise district names (trim, upper case, Rukum aliases)",77,77,0,2 values changed
+climate,C3,Convert 'date' from text to datetime,1031107,1031107,0,0 unreadable
+events,C3,Convert 'incident_date' from text to datetime,12518,12518,0,0 unreadable
+climate,C4,Drop empty column 'elevation_m' (100% missing),1031107,1031107,0,columns 14 -> 13
+events,C4,Keep 'estimated_loss_npr' but exclude from analysis (mostly missing),12518,12518,0,no rows removed
+events,C5,Remove exact duplicate rows (a block of records loaded twice),12518,12512,6,
+events,C5,Remove probable double entries (identical except ID and source),12512,12341,171,"deaths 3,251 -> 3,205"
+all,C6,Range and logic checks,,,,no violations found; nothing changed
+all,C7,"Consistency checks (rolling sums, road density, year, missing days, 45 series)",,,,all consistent
+events,C8,Convert incident_date from UTC to Nepal time (UTC+5:45),12341,12341,0,all dates move +1 day; 1 event(s) change year
+exposure,C9,"Drop columns with known errors: slope_mean_deg, slope_max_deg, slope_std_deg, household_size_used, households_estimated, area_km2_estimated",77,77,0,columns only; no rows removed
+events,C9,"Drop columns with known errors: people_affected, roads_destroyed, bridges_destroyed",12341,12341,0,columns only; no rows removed
+climate,C9,Drop columns with known errors: rainfall_anomaly_pct,1031107,1031107,0,columns only; no rows removed

@@ -168,7 +168,7 @@ function newSlide(master, section, kicker, title) {
   }
   const steps = [
     ["1  MEASURE", "Score all 77 districts on hazard, exposure and vulnerability"],
-    ["2  TEST", "Compare scores with 12,518 recorded disasters, 2011-2026"],
+    ["2  TEST", "Compare scores with 12,341 recorded disasters (after cleaning), 2011-2026"],
     ["3  INVEST", "Allocate USD 100M, every dollar tied to a named finding"],
   ];
   for (let i = 0; i < 3; i++) {
@@ -189,7 +189,7 @@ function newSlide(master, section, kicker, title) {
     ["FaCloudRain", "Climate: NASA POWER", "Daily rainfall and temperature, 1990-2026"],
     ["FaMountain", "Terrain and rivers: HydroSHEDS", "Elevation, river size, distance to rivers"],
     ["FaUsers", "Exposure: Census 2021, OpenStreetMap", "Population, hospitals, schools, roads, hydropower"],
-    ["FaClipboardList", "Disasters: BIPAD Portal", "12,518 floods, landslides and rain events, 2011-2026"],
+    ["FaClipboardList", "Disasters: BIPAD Portal", "12,341 floods, landslides and rain events after removing duplicates"],
   ];
   for (let i = 0; i < 4; i++) {
     const y = TOP + 0.6 + i * 1.12;
@@ -365,12 +365,12 @@ function newSlide(master, section, kicker, title) {
 
   // ============ 11. Validation scorecard ============
   pres.addSection({ title: "Validation" });
-  s = newSlide("CONTENT", "Validation", "VALIDATION", "Tested against 12,518 real disasters");
+  s = newSlide("CONTENT", "Validation", "VALIDATION", "Tested against 12,341 real disasters");
   tags(s, ["F7", "F8", "F9"]);
   const dec = D.decision;
   const score = [
-    ["FaCheck", "Landslide index", `ρ = ${dec["landslide index"].landslide_events.toFixed(2)}`, "vs recorded landslides", "WORKS", "Terrain ruggedness is the strongest driver; explains about half the variation (R² = 0.50)", C.accent2, "F8"],
-    ["FaExclamation", "Combined index", "ρ = 0.39", "vs all events (0.42 vs deaths)", "MODERATE", "Significant and useful, but driven almost entirely by its landslide part", C.accent3, "F7"],
+    ["FaCheck", "Landslide index", `ρ = ${dec["landslide index"].landslide_events.toFixed(2)}`, "vs recorded landslides", "WORKS", "Terrain ruggedness is the strongest driver; explains about half the variation (R² = 0.49)", C.accent2, "F8"],
+    ["FaExclamation", "Combined index", "ρ = 0.39", "vs all events (0.43 vs deaths)", "MODERATE", "Significant and useful, but driven almost entirely by its landslide part", C.accent3, "F7"],
     ["FaTimes", "Flood index", `ρ = ${dec["flood index"].flood_events.toFixed(2)}`, "vs recorded floods", "FAILS", "Floods happen where our variables don't look. Explained on the next slide", C.accent1, "F9"],
   ];
   for (let i = 0; i < 3; i++) {
@@ -388,10 +388,10 @@ function newSlide(master, section, kicker, title) {
     { text: "0 = no link  |  0.3 = weak  |  0.5 = moderate  |  0.7+ = strong" },
   ], { x: L, y: 6.2, w: CW, h: 0.4, fontSize: 14 });
   s.addNotes(
-    "This is the most important part. Until now, our index is just a hypothesis. We tested it against 12,518 disasters recorded by Nepal's BIPAD system since 2011. " +
-    "The landslide index works: a correlation of 0.53 with recorded landslides, and terrain ruggedness alone explains about half the difference between districts. " +
+    "This is the most important part. Until now, our index is just a hypothesis. We tested it against 12,341 disasters recorded by Nepal's BIPAD system since 2011, after removing duplicate records. " +
+    "The landslide index works: a correlation of 0.52 with recorded landslides, and terrain ruggedness alone explains about half the difference between districts. " +
     "The combined index is moderate, around 0.4, but that comes almost entirely from its landslide part. " +
-    "The flood index fails, at only 0.23. We did not re-tune the model to make this number look better; that would be cheating. Instead we found the reason."
+    "The flood index fails, at only 0.24. We did not re-tune the model to make this number look better; that would be cheating. Instead we found the reason."
   );
 
   // ============ 12. Why floods fail ============
@@ -411,7 +411,7 @@ function newSlide(master, section, kicker, title) {
   card(s, 7.6, TOP + 3.6, 5.13, 1.0, C.background2, "honesty card");
   text(s, "We report this rather than re-tuning the model until the number looks good.", { x: 7.85, y: TOP + 3.6, w: 4.7, h: 1.0, fontSize: 14, italic: true, color: C.text2, valign: "middle" });
   s.addNotes(
-    "Why do floods fail? Look at where floods are actually recorded: Jhapa, Morang, Sunsari, Kailali. Flat southern lowlands, plus Kathmandu. " +
+    "Why do floods fail? Look at where floods are actually recorded: Jhapa, Morang, Sunsari, Kailali, and Kathmandu. Flat southern lowlands, plus Kathmandu. " +
     "Flood counts go down with rugged terrain and up with population and roads. Our flood hazard score has essentially no link at all. " +
     "The explanation is a missing variable: we measure mountain rivers and rainfall, but lowland floods happen where rivers spread across flat, crowded plains, and the dataset has nothing on floodplains. Part of it is also reporting: floods get recorded where people and roads are. " +
     "The brief tells us to explain weak results, not hide them, and that's what we've done."
@@ -431,8 +431,8 @@ function newSlide(master, section, kicker, title) {
     border: { type: "solid", pt: 1, color: C.background2 }, fill: { color: C.background1 } });
   text(s, "Highlighted: the best index for each hazard. Spearman ρ across 77 districts.", { x: L, y: TOP + 2.75, w: 6.8, h: 0.4, fontSize: 12, italic: true, color: MUTED });
   const ev = [
-    ["Floods and landslides strike different places", "Their district counts are unrelated (ρ = −0.14). One number can't rank both."],
-    ["Each specific index wins on its own hazard", "Landslide 0.53 vs combined 0.47; flood 0.23 vs combined 0.12."],
+    ["Floods and landslides strike different places", "Their district counts are unrelated (ρ = −0.13). One number can't rank both."],
+    ["Each specific index wins on its own hazard", "Landslide 0.52 vs combined 0.47; flood 0.24 vs combined 0.12."],
     ["A single index would hide a weakness", "Its apparent success is its landslide part. Separating shows floods need better data."],
   ];
   for (let i = 0; i < 3; i++) {

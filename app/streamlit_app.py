@@ -27,7 +27,7 @@ def load():
     df = rm.load_inputs()
     with open(os.path.join(rm.OUT, "deck_data.json")) as f:
         deck = json.load(f)
-    events = pd.read_csv(os.path.join(rm.DATA, "disaster_events.csv"), parse_dates=["incident_date"])
+    events = pd.read_csv(os.path.join(rm.OUT, "clean", "disaster_events_clean.csv"), parse_dates=["incident_date"])
     return df, deck, events
 
 
@@ -223,7 +223,7 @@ def page_explorer():
     with c2:
         st.plotly_chart(bar_top(D[idx], f"Top 10: {INDEX_LABEL[idx]}", TERRA), width="stretch")
     if idx == "risk_flood":
-        st.warning("The flood index failed validation (ρ = 0.23 with recorded floods). Treat it as low confidence. See Validation.")
+        st.warning("The flood index failed validation (ρ = 0.24 with recorded floods). Treat it as low confidence. See Validation.")
 
     st.subheader("District profile")
     names = sorted(D.District)
@@ -325,7 +325,7 @@ def page_scenarios():
 
 
 def page_validation():
-    st.title("Validation against 12,518 real disasters")
+    st.title("Validation against 12,341 real disasters")
     st.markdown("Our index is a hypothesis until it is checked against what actually happened. We correlate district scores "
                 "with BIPAD's recorded events and deaths (2011–2026) using **Spearman ρ**: 0 = no link, 0.3 weak, 0.5 moderate, 0.7+ strong.")
     if changed:
@@ -357,7 +357,7 @@ def page_validation():
                           xaxis=dict(range=[-0.5, 0.55]), margin=dict(l=0, r=0, t=40, b=0))
         st.plotly_chart(fig, width="stretch")
     st.subheader("Decision: separate flood and landslide indices")
-    st.markdown("Floods and landslides strike different districts (ρ = −0.14 between their counts). Each specific index "
+    st.markdown("Floods and landslides strike different districts (ρ = −0.13 between their counts). Each specific index "
                 "beats the combined index on its own hazard. A single index would hide that we predict landslides well and floods poorly.")
     st.subheader("Blind spots in the record")
     c1, c2 = st.columns([1.3, 1])
@@ -369,8 +369,8 @@ def page_validation():
     with c2:
         finding("F10", f"Events quadrupled after 2023 while deaths per event fell from {deck['deaths_per_event'][0]} to "
                        f"{deck['deaths_per_event'][-1]}: more minor incidents logged, not more disasters.")
-        late = events[(events.incident_date >= "2026-08-24") & events.district_name.isin(CORRIDOR)]
-        finding("F10", f"The 26 Aug collapse is missing: only {len(late)} minor corridor events after 24 Aug, with {int(late.deaths.sum())} deaths recorded.")
+        late = events[(events.incident_date >= "2026-08-25") & events.district_name.isin(CORRIDOR)]
+        finding("F10", f"The 26 Aug collapse is missing: only {len(late)} minor corridor events from 25 Aug on, with {int(late.deaths.sum())} deaths recorded.")
         cr = deck["corridor_rank"]
         finding("F11", f"Glacial risk is invisible to our data: Sindhupalchok ranks #{cr['Sindhupalchok']}, Rasuwa #{cr['Rasuwa']}.")
 
