@@ -2,30 +2,28 @@
 // Run from this folder:  node build_deck.js
 const path = require("path");
 const pptxgen = require("pptxgenjs");
-const React = require("react");
-const ReactDOMServer = require("react-dom/server");
 const sharp = require("sharp");
-const fa = require("react-icons/fa");
 const { applyTheme } = require("./apply_theme.js");
 
 const D = require(path.join(__dirname, "..", "outputs", "deck_data.json"));
 const OUT = path.join(__dirname, "..", "Nepal_Climate_Risk_Deck.pptx");
 
 const THEME = {
-  name: "Himalaya Risk",
+  name: "Nepal Climate Risk Intelligence",
   headFontFace: "Calibri",
   bodyFontFace: "Calibri",
   colors: {
-    dk1: "14202B", lt1: "FFFFFF", dk2: "1F3A5F", lt2: "F5F7F9",
-    accent1: "1F3A5F", accent2: "3B5BA9", accent3: "B8243B",   // navy (labels) | indigo (data) | crimson (risk/highlight)
-    accent4: "76838F", accent5: "2462A3", accent6: "C9D1D9",   // muted ink | flood blue | context grey
-    hlink: "2F4FA0", folHlink: "76838F",
+    dk1: "334155", lt1: "FFFFFF", dk2: "112B49", lt2: "F4F7FB",   // body text | white | navy | page background
+    accent1: "195B96", accent2: "0072B2", accent3: "D55E00",   // active blue (labels) | data blue | vermillion (highlight)
+    accent4: "526579", accent5: "009E73", accent6: "76879A",   // muted text | teal | context grey
+    hlink: "0072B2", folHlink: "526579",
   },
 };
 const HEX = THEME.colors;
-const MUTED = "76838F";
-const GRID = "E3E7EB";
-const STATUS = { good: "1F7A4D", warn: "8A5A00", bad: "B8243B" };
+const MUTED = "526579";
+const GRID = "E2E8F0";
+const ON_DARK = "A9BCD0";   // secondary text on navy (8:1 contrast)
+const STATUS = { good: "0072B2", warn: "B84A00", bad: "D55E00" };   // never colour alone: always with a symbol and label
 
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.333 x 7.5 in
@@ -43,17 +41,17 @@ pres.defineSlideMaster({
   title: "TITLE_DARK",
   background: { color: C.text2 },
   objects: [
-    { placeholder: { options: { name: "kicker", type: "body", x: L, y: 1.55, w: 8.4, h: 0.4, fontSize: 14, bold: true, color: C.accent6, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
-    { placeholder: { options: { name: "title", type: "title", x: L, y: 2.0, w: 8.4, h: 2.1, fontSize: 44, bold: true, color: C.background1, valign: "top", align: "left", margin: 0 }, text: "" } },
-    { placeholder: { options: { name: "body", type: "body", x: L, y: 4.3, w: 8.0, h: 1.4, fontSize: 18, color: C.background2, valign: "top", align: "left", margin: 0 }, text: "" } },
+    { placeholder: { options: { name: "kicker", type: "body", x: L, y: 1.55, w: 8.4, h: 0.4, fontSize: 14, bold: true, color: ON_DARK, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
+    { placeholder: { options: { name: "title", type: "title", x: L, y: 2.0, w: 8.4, h: 1.25, fontSize: 44, bold: true, color: C.background1, valign: "top", align: "left", margin: 0 }, text: "" } },
+    { placeholder: { options: { name: "body", type: "body", x: L, y: 3.35, w: 8.0, h: 1.4, fontSize: 18, color: C.background2, valign: "top", align: "left", margin: 0 }, text: "" } },
   ],
 });
 pres.defineSlideMaster({
   title: "CONTENT",
-  background: { color: C.background1 },
+  background: { color: C.background2 },
   margin: [0.5, 0.6, 0.7, 0.6],
   objects: [
-    { placeholder: { options: { name: "kicker", type: "body", x: L, y: 0.35, w: 9.0, h: 0.32, fontSize: 12, bold: true, color: C.accent4, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
+    { placeholder: { options: { name: "kicker", type: "body", x: L, y: 0.35, w: 9.0, h: 0.32, fontSize: 12, bold: true, color: C.accent2, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
     { placeholder: { options: { name: "title", type: "title", x: L, y: 0.7, w: CW, h: 0.85, fontSize: 34, bold: true, color: C.text2, valign: "top", align: "left", margin: 0 }, text: "" } },
     { text: { text: "Nepal Climate Risk and Resilience Assessment", options: { x: L, y: 7.05, w: 8, h: 0.3, fontSize: 10, color: C.accent4, margin: 0 } } },
   ],
@@ -63,35 +61,70 @@ pres.defineSlideMaster({
   title: "CLOSING_DARK",
   background: { color: C.text2 },
   objects: [
-    { placeholder: { options: { name: "kicker", type: "body", x: L, y: 0.6, w: 9.0, h: 0.35, fontSize: 12, bold: true, color: C.accent6, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
+    { placeholder: { options: { name: "kicker", type: "body", x: L, y: 0.6, w: 9.0, h: 0.35, fontSize: 12, bold: true, color: ON_DARK, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
     { placeholder: { options: { name: "title", type: "title", x: L, y: 0.95, w: CW, h: 0.9, fontSize: 38, bold: true, color: C.background1, valign: "top", align: "left", margin: 0 }, text: "" } },
   ],
 });
 
 // ---------- helpers ----------
-async function iconData(name, hex = "FFFFFF") {
-  const svg = ReactDOMServer.renderToStaticMarkup(React.createElement(fa[name], { color: "#" + hex, size: 256 }));
-  const png = await sharp(Buffer.from(svg)).resize(256, 256).png().toBuffer();
+// Thin line icons (Feather style, 24x24, round caps) - the same icon family as the app. Keys keep the
+// old names used throughout the slides.
+const ICON = {
+  FaMountain: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+  FaWater: '<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>',
+  FaUsers: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  FaBolt: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  FaCloudShowersHeavy: '<line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>',
+  FaCloudRain: '<line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/>',
+  FaRoad: '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  FaClipboardList: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>',
+  FaCompressArrowsAlt: '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>',
+  FaBalanceScale: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+  FaTimes: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  FaCheck: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  FaExclamation: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  FaChartBar: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  FaSearch: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  FaEyeSlash: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
+};
+async function iconData(name, hex = "0072B2") {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24" fill="none" stroke="#${hex}" ` +
+    `stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
   return "image/png;base64," + png.toString("base64");
 }
-async function iconCircle(slide, name, x, y, d, fill, label) {
-  slide.addShape(pres.shapes.OVAL, { x, y, w: d, h: d, fill: { color: fill }, line: { type: "none" }, objectName: `${label} circle` });
-  const pad = d * 0.27;
-  slide.addImage({ data: await iconData(name), x: x + pad, y: y + pad, w: d - 2 * pad, h: d - 2 * pad, objectName: `${label} icon`, altText: label });
+// Icon on a soft rounded tile (pale blue on light slides, blue on dark slides). `fill` is kept for call compatibility.
+async function iconCircle(slide, name, x, y, d, fill, label, dark = false) {
+  slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: d, h: d, rectRadius: d * 0.22, fill: { color: dark ? "195B96" : "E6F1F8" },
+    line: { type: "none" }, objectName: `${label} tile` });
+  const pad = d * 0.25;
+  slide.addImage({ data: await iconData(name, dark ? "FFFFFF" : "0072B2"), x: x + pad, y: y + pad, w: d - 2 * pad, h: d - 2 * pad,
+    objectName: `${label} icon`, altText: label });
+}
+// Mountain ridge line-art for the title slide (subtle navy tones, like the app's page header)
+async function ridgesData() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="720" viewBox="0 0 700 360">
+    <polygon points="0,360 120,220 190,270 300,120 380,200 450,150 560,240 640,180 700,220 700,360" fill="#18375C"/>
+    <polygon points="300,120 326,152 310,148 296,160 282,146" fill="#3D6A99"/><polygon points="450,150 470,174 454,170 440,180" fill="#3D6A99"/>
+    <polygon points="140,360 260,250 340,300 470,200 580,280 700,240 700,360" fill="#1E4470"/>
+    <polygon points="360,360 480,300 560,330 660,290 700,310 700,360" fill="#25507F"/></svg>`;
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  return "image/png;base64," + png.toString("base64");
 }
 function text(slide, t, opts) {
   slide.addText(t, { isTextBox: true, margin: 0, valign: "top", fontSize: 14, color: C.text1, ...opts });
 }
-function card(slide, x, y, w, h, fill = C.background2, name = "card") {
-  const line = fill === C.background2 ? { color: "DDE2E7", width: 0.75 } : { type: "none" };
-  slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, rectRadius: 0.05, fill: { color: fill }, line, objectName: name });
+function card(slide, x, y, w, h, fill = C.background1, name = "card") {
+  const light = fill === C.background1 || fill === C.background2;   // light cards are white on the pale page
+  slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, rectRadius: 0.12, fill: { color: light ? C.background1 : fill },
+    line: light ? { color: "E2E8F0", width: 0.75 } : { type: "none" }, objectName: name });
 }
 // Finding tags (F1..F11) - the deck's motif: every claim is traceable.
 function tags(slide, list, xRight = L + CW, y = 0.33) {
   const w = 0.62, gap = 0.1;
   let x = xRight - list.length * w - (list.length - 1) * gap;
   for (const t of list) {
-    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h: 0.32, rectRadius: 0.04, fill: { color: C.background1 }, line: { color: "C7D1DE", width: 0.75 }, objectName: `tag ${t}` });
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h: 0.32, rectRadius: 0.04, fill: { color: C.background1 }, line: { color: "9DBAD6", width: 0.75 }, objectName: `tag ${t}` });
     text(slide, t, { x, y, w, h: 0.32, fontSize: 11, bold: true, color: C.accent1, fontFace: "Consolas", align: "center", valign: "middle" });
     x += w + gap;
   }
@@ -103,12 +136,18 @@ function stat(slide, x, y, w, big, label, color = C.text1) {
 function chartStyle(extra = {}) {
   return {
     catAxisLabelColor: MUTED, valAxisLabelColor: MUTED, catAxisLabelFontFace: "+mn-lt", valAxisLabelFontFace: "+mn-lt",
-    catAxisLabelFontSize: 11, valAxisLabelFontSize: 11, dataLabelFontFace: "+mn-lt", dataLabelFontSize: 11, dataLabelColor: "1B2A33",
-    titleFontFace: "+mn-lt", titleFontSize: 13, titleColor: "1B2A33", showTitle: true,
+    catAxisLabelFontSize: 11, valAxisLabelFontSize: 11, dataLabelFontFace: "+mn-lt", dataLabelFontSize: 11, dataLabelColor: "334155",
+    titleFontFace: "+mn-lt", titleFontSize: 13, titleColor: "112B49", showTitle: true,
     valGridLine: { color: GRID, size: 0.75 }, catGridLine: { style: "none" },
     catAxisLineColor: GRID, valAxisLineShow: false, showLegend: false, legendFontFace: "+mn-lt", legendFontSize: 11, legendColor: MUTED,
     ...extra,
   };
+}
+// Draws a white card behind a chart, then the chart (reads x/y/w/h before pptxgenjs converts them)
+function panelChart(slide, a, b, c) {
+  const o = c || b;
+  card(slide, o.x - 0.12, o.y - 0.12, o.w + 0.24, o.h + 0.24, C.background1, "chart panel");
+  return c ? slide.addChart(a, b, c) : slide.addChart(a, b);
 }
 function newSlide(master, section, kicker, title) {
   const s = pres.addSlide({ masterName: master, sectionTitle: section });
@@ -124,8 +163,9 @@ function newSlide(master, section, kicker, title) {
   s.addText("CAPSTONE PROJECT  |  OCTOBER 2026", { placeholder: "kicker" });
   s.addText("Where Nepal's Climate Risk Lives", { placeholder: "title" });
   s.addText("A risk assessment of all 77 districts, tested against 15 years of recorded disasters, and a USD 100 million resilience recommendation", { placeholder: "body" });
-  s.addShape(pres.shapes.OVAL, { x: 9.55, y: 1.75, w: 3.2, h: 3.2, fill: { color: C.accent2 }, line: { type: "none" }, objectName: "hero circle" });
-  s.addImage({ data: await iconData("FaMountain"), x: 10.35, y: 2.55, w: 1.6, h: 1.6, objectName: "hero icon", altText: "Mountain" });
+  s.addImage({ data: await ridgesData(), x: 6.33, y: 3.9, w: 7.0, h: 3.6, objectName: "mountain ridges", altText: "Himalayan ridge line art" });
+  await iconCircle(s, "FaMountain", L, 0.6, 0.5, null, "Logo", true);
+  text(s, "NEPAL CLIMATE RISK  ·  INTELLIGENCE PLATFORM", { x: L + 0.68, y: 0.6, w: 7, h: 0.5, fontSize: 12, bold: true, color: ON_DARK, charSpacing: 2, valign: "middle" });
   s.addNotes(
     "Good morning. This assessment answers one practical question: if a donor has 100 million dollars to make Nepal more resilient to climate disasters, where should it go and why? " +
     "We look at all 77 districts, we test our answer against 15 years of real disaster records, and we end with a recommendation where every dollar is tied to evidence."
@@ -146,7 +186,7 @@ function newSlide(master, section, kicker, title) {
     text(s, rows[i][2], { x: L + 1.05, y: y + 0.4, w: 5.0, h: 0.5, fontSize: 14 });
   }
   card(s, 7.3, TOP + 0.1, 5.43, 4.75, C.text2, "question card");
-  text(s, "THE CENTRAL QUESTION", { x: 7.7, y: TOP + 0.45, w: 4.6, h: 0.3, fontSize: 12, bold: true, color: C.accent6, charSpacing: 2 });
+  text(s, "THE CENTRAL QUESTION", { x: 7.7, y: TOP + 0.45, w: 4.6, h: 0.3, fontSize: 12, bold: true, color: ON_DARK, charSpacing: 2 });
   text(s, "How do climate hazards, terrain, population, infrastructure and access interact to create risk across Nepal's 77 districts, and where has that risk actually materialized?",
     { x: 7.7, y: TOP + 0.95, w: 4.6, h: 3.2, fontSize: 20, color: C.background1 });
   s.addNotes(
@@ -225,7 +265,7 @@ function newSlide(master, section, kicker, title) {
   s = newSlide("CONTENT", "Climate", "CLIMATE  |  2004-2025", `Rainfall is rising about ${D.rain_slope} mm a year`);
   tags(s, ["F1"]);
   const yrs = D.rain_years.map(String);
-  s.addChart([
+  panelChart(s, [
     { type: pres.charts.LINE, data: [{ name: "Annual rainfall", labels: yrs, values: D.rain_mm }], options: { chartColors: [HEX.accent2], lineSize: 2, lineDataSymbol: "circle", lineDataSymbolSize: 7 } },
     { type: pres.charts.LINE, data: [{ name: "Trend", labels: yrs, values: D.rain_trend }], options: { chartColors: [HEX.accent3], lineSize: 2, lineDataSymbol: "none", lineDash: ["dash"] } },
   ], chartStyle({ x: L, y: TOP, w: 7.9, h: 4.95, title: "Average annual rainfall, 45 independent series (mm)", showLegend: true, legendPos: "b", catAxisLabelRotate: -45, valAxisMinVal: 1000, valAxisLabelFormatCode: "#,##0" }));
@@ -245,7 +285,7 @@ function newSlide(master, section, kicker, title) {
   const ey = D.ext_years.map(String);
   const base = D.ext_days.map((v, i) => (D.ext_years[i] <= 2019 ? v : 0));
   const rec = D.ext_days.map((v, i) => (D.ext_years[i] >= 2020 ? v : 0));
-  s.addChart(pres.charts.BAR, [
+  panelChart(s, pres.charts.BAR, [
     { name: "Baseline 2004-2019", labels: ey, values: base },
     { name: "Recent 2020-2025", labels: ey, values: rec },
   ], chartStyle({ x: L, y: TOP, w: 7.6, h: 4.95, barDir: "col", barGrouping: "stacked", barGapWidthPct: 40, chartColors: [HEX.accent6, HEX.accent2], showLegend: true, legendPos: "b", catAxisLabelRotate: -45,
@@ -268,7 +308,7 @@ function newSlide(master, section, kicker, title) {
   tags(s, ["F4"]);
   const sx = D.scatter;
   const xs = sx.x_other.concat(sx.x_hot);
-  s.addChart(pres.charts.SCATTER, [
+  panelChart(s, pres.charts.SCATTER, [
     { name: "Ruggedness", values: xs },
     { name: "Other districts", values: sx.y_other.concat(sx.x_hot.map(() => null)) },
     { name: "Steep and on major rivers", values: sx.x_other.map(() => null).concat(sx.y_hot) },
@@ -298,8 +338,8 @@ function newSlide(master, section, kicker, title) {
   tags(s, ["F5", "F6"]);
   const barOpts = (x, w, title, color) => chartStyle({ x, y: TOP, w, h: 4.3, barDir: "bar", chartColors: [color], title, showValue: true, dataLabelPosition: "outEnd",
     dataLabelFormatCode: "0", catAxisOrientation: "maxMin", valAxisHidden: true, valGridLine: { style: "none" }, valAxisMaxVal: 115, barGapWidthPct: 45, catAxisLabelFontSize: 12 });
-  s.addChart(pres.charts.BAR, [{ name: "Exposure", labels: D.top_exposure.labels, values: D.top_exposure.values }], barOpts(L, 5.85, "Exposure score: people and critical assets (top 8)", HEX.accent2));
-  s.addChart(pres.charts.BAR, [{ name: "Vulnerability", labels: D.top_vuln.labels, values: D.top_vuln.values }], barOpts(6.88, 5.85, "Vulnerability score: weak road and hospital access (top 8)", HEX.accent2));
+  panelChart(s, pres.charts.BAR, [{ name: "Exposure", labels: D.top_exposure.labels, values: D.top_exposure.values }], barOpts(L, 5.85, "Exposure score: people and critical assets (top 8)", HEX.accent2));
+  panelChart(s, pres.charts.BAR, [{ name: "Vulnerability", labels: D.top_vuln.labels, values: D.top_vuln.values }], barOpts(6.88, 5.85, "Vulnerability score: weak road and hospital access (top 8)", HEX.accent2));
   text(s, "Kathmandu Valley, Pokhara (Kaski) and the southern plains hold most people. Dolakha holds the most hydropower (587 MW).", { x: L, y: 6.2, w: 5.85, h: 0.75, fontSize: 13 });
   text(s, "One or two mapped hospitals for 100,000+ people and very sparse roads. Not captured: poverty, age, housing quality.", { x: 6.88, y: 6.2, w: 5.85, h: 0.75, fontSize: 13 });
   s.addNotes(
@@ -312,19 +352,19 @@ function newSlide(master, section, kicker, title) {
   pres.addSection({ title: "Risk index" });
   s = newSlide("CONTENT", "Risk index", "THE RISK INDEX", "High only where all three are high");
   const blocks = [
-    ["HAZARD", "Flood: rain + rivers\nLandslide: rain + terrain", C.accent3],
+    ["HAZARD", "Flood: rain + rivers\nLandslide: rain + terrain", "B84A00"],
     ["EXPOSURE", "People, density, hydropower, hospitals, schools", C.accent2],
-    ["VULNERABILITY", "Road access and people per hospital", C.accent4],
+    ["VULNERABILITY", "Road access and people per hospital", C.accent1],
   ];
   for (let i = 0; i < 3; i++) {
     const x = L + i * 3.17;
-    card(s, x, TOP, 2.7, 2.1, blocks[i][2], blocks[i][0]);
-    text(s, blocks[i][0], { x: x + 0.2, y: TOP + 0.2, w: 2.3, h: 0.4, fontSize: 16, bold: true, color: C.background1, charSpacing: 1 });
-    text(s, blocks[i][1], { x: x + 0.2, y: TOP + 0.7, w: 2.3, h: 1.3, fontSize: 14, color: C.background1 });
+    card(s, x, TOP, 2.7, 2.1, C.background1, blocks[i][0]);
+    text(s, blocks[i][0], { x: x + 0.2, y: TOP + 0.2, w: 2.3, h: 0.4, fontSize: 16, bold: true, color: blocks[i][2], charSpacing: 1 });
+    text(s, blocks[i][1], { x: x + 0.2, y: TOP + 0.7, w: 2.3, h: 1.3, fontSize: 14, color: C.text1 });
     text(s, i < 2 ? "×" : "=", { x: x + 2.7, y: TOP + 0.6, w: 0.47, h: 0.8, fontSize: 32, bold: true, color: C.accent4, align: "center", valign: "middle" });
   }
   card(s, L + 3 * 3.17, TOP, 2.62, 2.1, C.text2, "risk block");
-  text(s, "RISK", { x: L + 3 * 3.17 + 0.2, y: TOP + 0.2, w: 2.2, h: 0.4, fontSize: 16, bold: true, color: C.accent6, charSpacing: 1 });
+  text(s, "RISK", { x: L + 3 * 3.17 + 0.2, y: TOP + 0.2, w: 2.2, h: 0.4, fontSize: 16, bold: true, color: ON_DARK, charSpacing: 1 });
   text(s, "Geometric mean of the three, scored 0-100", { x: L + 3 * 3.17 + 0.2, y: TOP + 0.7, w: 2.2, h: 1.3, fontSize: 14, color: C.background1 });
   const choices = [
     ["FaCompressArrowsAlt", "Log scaling", "Stops giants like Kathmandu flattening every other district onto the same score"],
@@ -346,8 +386,8 @@ function newSlide(master, section, kicker, title) {
 
   // ============ 10. Top 10 ============
   s = newSlide("CONTENT", "Risk index", "THE RISK INDEX", "The ten highest-risk districts");
-  s.addChart(pres.charts.BAR, [{ name: "Risk", labels: D.top_risk.labels, values: D.top_risk.values }], chartStyle({
-    x: L, y: TOP, w: 7.4, h: 4.95, barDir: "bar", chartColors: [HEX.accent3], title: "Combined risk score (0-100)", showValue: true, dataLabelPosition: "outEnd",
+  panelChart(s, pres.charts.BAR, [{ name: "Risk", labels: D.top_risk.labels, values: D.top_risk.values }], chartStyle({
+    x: L, y: TOP, w: 7.4, h: 4.95, barDir: "bar", chartColors: [HEX.accent2], title: "Combined risk score (0-100)", showValue: true, dataLabelPosition: "outEnd",
     dataLabelFormatCode: "0", catAxisOrientation: "maxMin", valAxisHidden: true, valGridLine: { style: "none" }, valAxisMaxVal: 112, barGapWidthPct: 40, catAxisLabelFontSize: 12 }));
   text(s, "What the top ten share", { x: 8.4, y: TOP, w: 4.33, h: 0.4, fontSize: 18, bold: true, color: C.text2 });
   text(s, [
@@ -400,7 +440,7 @@ function newSlide(master, section, kicker, title) {
   s = newSlide("CONTENT", "Validation", "VALIDATION  |  FLOODS", "Why the flood index fails: floods are on the plains");
   tags(s, ["F9"]);
   const fc = D.flood_corr;
-  s.addChart(pres.charts.BAR, [{ name: "rho", labels: Object.keys(fc), values: Object.values(fc) }], chartStyle({
+  panelChart(s, pres.charts.BAR, [{ name: "rho", labels: Object.keys(fc), values: Object.values(fc) }], chartStyle({
     x: L, y: TOP, w: 6.6, h: 4.6, barDir: "bar", chartColors: [HEX.accent2], title: "Correlation with recorded flood events (ρ)", showValue: true, dataLabelPosition: "outEnd",
     dataLabelFormatCode: "+0.00;-0.00", catAxisOrientation: "maxMin", valAxisMinVal: -0.5, valAxisMaxVal: 0.5, valAxisLabelFormatCode: "0.0", barGapWidthPct: 50, catAxisLabelFontSize: 12, catAxisLabelPos: "low" }));
   text(s, "Most recorded floods", { x: 7.6, y: TOP, w: 5.13, h: 0.4, fontSize: 18, bold: true, color: C.text2 });
@@ -453,7 +493,7 @@ function newSlide(master, section, kicker, title) {
   s = newSlide("CONTENT", "Validation", "VALIDATION  |  DATA QUALITY", "The record has blind spots, including this event");
   tags(s, ["F10", "F11"]);
   const yy = D.events_years.map(String);
-  s.addChart(pres.charts.BAR, [
+  panelChart(s, pres.charts.BAR, [
     { name: "2011-2023", labels: yy, values: D.events_n.map((v, i) => (D.events_years[i] <= 2023 ? v : 0)) },
     { name: "2024-2026", labels: yy, values: D.events_n.map((v, i) => (D.events_years[i] >= 2024 ? v : 0)) },
   ], chartStyle({ x: L, y: TOP, w: 7.2, h: 4.95, barDir: "col", barGrouping: "stacked", barGapWidthPct: 40, chartColors: [HEX.accent6, HEX.accent2], title: "Recorded disaster events per year (BIPAD)",
@@ -481,7 +521,7 @@ function newSlide(master, section, kicker, title) {
   s = newSlide("CONTENT", "Recommendation", "RECOMMENDATION", "USD 100M: money follows evidence");
   const al = [...D.alloc].sort((a, b) => b.usd - a.usd);
   const nice = (l) => l.replace(/^\S+\s/, "");
-  s.addChart(pres.charts.BAR, [{ name: "USD M", labels: al.map((a) => nice(a.line)), values: al.map((a) => a.usd) }], chartStyle({
+  panelChart(s, pres.charts.BAR, [{ name: "USD M", labels: al.map((a) => nice(a.line)), values: al.map((a) => a.usd) }], chartStyle({
     x: L, y: TOP, w: 7.4, h: 4.95, barDir: "bar", chartColors: [HEX.accent2], title: "Allocation (USD million)", showValue: true, dataLabelPosition: "outEnd",
     dataLabelFormatCode: '"$"0"M"', catAxisOrientation: "maxMin", valAxisHidden: true, valGridLine: { style: "none" }, valAxisMaxVal: 27, barGapWidthPct: 40, catAxisLabelFontSize: 12 }));
   const act = ["1a", "1b", "3", "4"], blind = ["2", "5"];
@@ -524,12 +564,12 @@ function newSlide(master, section, kicker, title) {
   ];
   for (let i = 0; i < 3; i++) {
     const x = L + i * 4.17;
-    text(s, String(i + 1), { x, y: 2.35, w: 1, h: 0.9, fontSize: 54, bold: true, color: C.accent6 });
+    text(s, String(i + 1), { x, y: 2.35, w: 1, h: 0.9, fontSize: 54, bold: true, color: "56B4E9" });
     text(s, take[i][0], { x, y: 3.35, w: 3.75, h: 1.0, fontSize: 20, bold: true, color: C.background1 });
     text(s, take[i][1], { x, y: 4.45, w: 3.75, h: 1.3, fontSize: 15, color: C.background2 });
-    text(s, take[i][2], { x, y: 5.85, w: 3.75, h: 0.35, fontSize: 12, bold: true, color: C.accent6, fontFace: "Consolas" });
+    text(s, take[i][2], { x, y: 5.85, w: 3.75, h: 0.35, fontSize: 12, bold: true, color: ON_DARK, fontFace: "Consolas" });
   }
-  text(s, "Full method, code and assumptions: nepal_risk_assessment.ipynb", { x: L, y: 6.8, w: CW, h: 0.3, fontSize: 11, color: C.accent6 });
+  text(s, "Full method, code and assumptions: nepal_risk_assessment.ipynb", { x: L, y: 6.8, w: CW, h: 0.3, fontSize: 11, color: ON_DARK });
   s.addNotes(
     "Three things to remember. One: rain extremes in Nepal are rising. Two: with this data we can rank landslide risk with reasonable confidence, but floods and glacial collapses like 26 August sit in blind spots. " +
     "Three: our 100 million follows the evidence, protecting where we're confident and closing the gaps where we're not. Thank you, I'm happy to take questions."
