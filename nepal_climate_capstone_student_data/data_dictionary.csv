@@ -1,0 +1,69 @@
+file,column,description,unit,source,caveats_limitations
+climate_hazard.csv,date,Calendar date of observation,date,NASA POWER (power.larc.nasa.gov),Full range 1990-01-01 to 2026-08-30. See rainfall_mm caveat: trend/anomaly analysis should be restricted to 2004 onward.
+climate_hazard.csv,district_name,"District name (ALL CAPS, matches geoBoundaries)",text,geoBoundaries ADM2,
+climate_hazard.csv,latitude,Latitude of district representative point used for the NASA POWER query,decimal degrees,Derived from nepal_adm2.geojson,"One point per district, not a grid -- a simplification for a country this size"
+climate_hazard.csv,longitude,Longitude of district representative point,decimal degrees,Derived from nepal_adm2.geojson,Same as above
+climate_hazard.csv,rainfall_mm,Bias-corrected precipitation,mm/day,"NASA POWER, PRECTOTCORR","TWO VERIFIED LIMITATIONS. (1) Grid resolution: 52 of 77 districts share a byte-identical daily rainfall series with at least one neighboring district (NASA POWER's spatial resolution is coarser than the distance between some district centroids); there are only 45 independent climate signals across 77 districts, not 77. See climate_grid_clusters.csv for the full grouping -- do not compare rainfall between two districts in the same cluster. (2) Structural break: national mean rainfall roughly doubles between the 1990-2003 and 2004-2019 periods in a single-year jump, consistent with a known transition in NASA's precipitation data sourcing (reanalysis-only before ~2000-2004, blended with satellite-based GPM/TRMM retrievals after). Restrict trend and baseline-vs-recent anomaly calculations to 2004-2026; the full 1990-2026 record remains valid for extreme-day/percentile threshold characterization only."
+climate_hazard.csv,temperature_mean_c,Mean air temperature at 2m,deg C,"NASA POWER, T2M",
+climate_hazard.csv,temperature_max_c,Max air temperature at 2m,deg C,"NASA POWER, T2M_MAX",
+climate_hazard.csv,temperature_min_c,Min air temperature at 2m,deg C,"NASA POWER, T2M_MIN",
+climate_hazard.csv,relative_humidity_pct,Relative humidity at 2m,%,"NASA POWER, RH2M",
+climate_hazard.csv,wind_speed_ms,Wind speed at 2m,m/s,"NASA POWER, WS2M",
+climate_hazard.csv,rainfall_3day_mm,Rolling 3-day rainfall sum,mm,Derived,
+climate_hazard.csv,rainfall_7day_mm,Rolling 7-day rainfall sum,mm,Derived,
+climate_hazard.csv,rainfall_anomaly_pct,Percent deviation of a day's rainfall from that district's all-time daily mean,%,Derived,"Uses a flat all-time mean, not a seasonal baseline -- every dry-season day shows close to -100%; this is a crude signal, not a true seasonal anomaly. Also subject to the structural-break caveat on rainfall_mm above."
+climate_hazard.csv,elevation_m,"Placeholder -- left blank, not fabricated",m,n/a,Join to exposure_vulnerability.csv (elevation_mean_m) yourself if needed for analysis
+exposure_vulnerability.csv,district_id,Canonical district identifier (NP01-NP77),code,Built in-project (crosswalk),"Use this to join files, not district_name text"
+exposure_vulnerability.csv,district_name,District name,text,geoBoundaries ADM2 / NSO 2021 census,"NOTE: Rukum East/Rukum West are spelled this way here, but as EASTERN RUKUM / WESTERN RUKUM in climate_hazard.csv and disaster_events.csv. Apply an explicit alias before joining on district name, or join on district_id where available."
+exposure_vulnerability.csv,province,Province name,text,NSO 2021 census,
+exposure_vulnerability.csv,elevation_mean_m,Mean elevation across district area,m,"HydroSHEDS DEM (15 arc-sec, ~500m)",
+exposure_vulnerability.csv,elevation_min_m,Minimum elevation in district,m,HydroSHEDS DEM,
+exposure_vulnerability.csv,elevation_max_m,Maximum elevation in district,m,HydroSHEDS DEM,
+exposure_vulnerability.csv,elevation_std_m,Standard deviation of elevation (terrain ruggedness proxy),m,HydroSHEDS DEM,"VERIFIED RELIABLE. Recommended as the primary terrain-ruggedness variable -- unaffected by the slope calculation bug below, and confirmed to produce physically sensible values (e.g. Mugu 3,901m, Manang 4,855m vs Bhaktapur 1,460m)."
+exposure_vulnerability.csv,slope_mean_deg,Mean terrain slope,degrees,Derived from HydroSHEDS DEM,"VERIFIED BUG, NOT FIXED IN THIS FILE (raw DEM not available to recompute). Values are saturated near 90 degrees for nearly all districts (mean 89.5, std 0.96) due to a units error in the upstream slope calculation -- pixel resolution was used in degrees rather than meters, an approximately 111,000x error in the gradient denominator. This variable still crudely separates flat Terai districts (86-89 deg) from mountainous ones (~90.00 deg), but has almost no discriminating power among mountainous districts themselves, where it matters most. Use elevation_std_m instead for any real analysis."
+exposure_vulnerability.csv,slope_max_deg,99th percentile terrain slope,degrees,Derived from HydroSHEDS DEM,Same bug as slope_mean_deg -- values are saturated at approximately 89.999 degrees for essentially every district and carry no usable signal. Do not use.
+exposure_vulnerability.csv,slope_std_deg,Standard deviation of slope,degrees,Derived from HydroSHEDS DEM,Same bug as slope_mean_deg -- derived from the same corrupted saturated values. Do not use.
+exposure_vulnerability.csv,flow_acc_mean,Mean flow accumulation (upstream cell count),cell count,HydroSHEDS flow accumulation,Higher values indicate river channels
+exposure_vulnerability.csv,flow_acc_max,Max flow accumulation in district,cell count,HydroSHEDS flow accumulation,Proxy for magnitude of largest river passing through. Verified reliable.
+exposure_vulnerability.csv,river_cell_count,Count of pixels classified as river channel,count,"Derived, threshold=1000 cells",
+exposure_vulnerability.csv,dist_to_river_mean_km,Mean distance from all district cells to nearest river channel,km,Derived,"Uses approximate pixel size (0.463 km), not geodesically exact"
+exposure_vulnerability.csv,dist_to_river_max_km,Max distance to nearest river channel,km,Derived,Same caveat as above
+exposure_vulnerability.csv,has_major_river,Binary flag: does a major river pass through this district,0/1,"Derived, threshold=10000 cells",
+exposure_vulnerability.csv,population,Total population,count,NSO 2021 census,
+exposure_vulnerability.csv,sex_ratio_m_per_100_f,Males per 100 females,ratio,NSO 2021 census,
+exposure_vulnerability.csv,population_density_per_km2,Population per sq km,people/km2,NSO 2021 census,
+exposure_vulnerability.csv,annual_growth_rate_pct,Annual population growth rate,%,NSO 2021 census,
+exposure_vulnerability.csv,area_km2_estimated,"District area, back-calculated from population/density",km2,Derived,Approximate -- see area_km2_true for the geometry-based figure
+exposure_vulnerability.csv,household_size_used,Household size constant used to estimate household count,persons/household,NSO 2021 national average,"National figure (4.37), not true per-district value -- true district figures were not accessible due to a data-portal outage during this project"
+exposure_vulnerability.csv,households_estimated,Estimated household count,count,Derived: population / household_size_used,"Estimate, not a real per-district household count"
+exposure_vulnerability.csv,hospital_count,Number of hospitals mapped in OpenStreetMap,count,OpenStreetMap Overpass API,"OSM coverage is uneven, especially in rural areas -- likely undercounts real facility totals"
+exposure_vulnerability.csv,school_count,Number of schools mapped in OpenStreetMap,count,OpenStreetMap Overpass API,Same coverage caveat as hospital_count
+exposure_vulnerability.csv,hydropower_capacity_mw,Total installed hydropower capacity,MW,"Wikipedia, List of power stations in Nepal (operational plants, as of 9 Mar 2026)","Manually aggregated to district level; a few multi-district cascade projects assigned to first-listed district only. Nawalparasi West and Rukum West assignments for 2 plants are a documented assumption, not a confirmed fact."
+exposure_vulnerability.csv,hydropower_plant_count,Number of hydropower plants,count,Same as above,Same caveat as above
+exposure_vulnerability.csv,area_km2_true,"District area from actual boundary geometry (projected, not degree-based)",km2,"geoBoundaries ADM2, projected to a Nepal-centered Transverse Mercator",More accurate than area_km2_estimated. Verified reliable.
+exposure_vulnerability.csv,road_length_km,Total length of vehicle-accessible roads,km,OpenStreetMap Overpass API,"Excludes footpaths/tracks -- a deliberate scope choice, not a data gap"
+exposure_vulnerability.csv,road_density_km_per_km2,Road length divided by true district area,km/km2,Derived,
+exposure_vulnerability.csv,bridge_count,Count of OSM way-segments tagged bridge=yes,count,OpenStreetMap Overpass API,"Counts tagged segments, not verified physical bridges -- can overcount if OSM split one bridge into multiple segments"
+exposure_vulnerability.csv,bridge_length_km,Total length of bridge-tagged road segments,km,OpenStreetMap Overpass API,Same caveat as bridge_count
+disaster_events.csv,incident_id,BIPAD Portal internal incident ID,code,BIPAD Portal (Government of Nepal DRR system),
+disaster_events.csv,title,Incident title as recorded,text,BIPAD Portal,
+disaster_events.csv,hazard,Hazard type,text,BIPAD Portal,"Filtered to: Flood, Landslide, Glacial lake outburst, Inundation, Heavy Rainfall, Rainfall, Avalanche, Soil Erosion -- other hazard types (fire, road accidents, etc.) excluded"
+disaster_events.csv,district_name,District where incident occurred,text,Derived via point-in-polygon against nepal_adm2.geojson,Uses EASTERN RUKUM / WESTERN RUKUM naming -- see alias note under exposure_vulnerability.csv district_name
+disaster_events.csv,incident_date,Date/time of incident,datetime,BIPAD Portal,"Verified range: 2011-05-09 to 2026-09-05. Real coverage effectively starts ~2011, not 1990."
+disaster_events.csv,verified,Whether BIPAD marked this incident as verified,true/false,BIPAD Portal,
+disaster_events.csv,source,"Reporting source (e.g. nepal_police, other)",text,BIPAD Portal,
+disaster_events.csv,deaths,Recorded deaths,count,BIPAD Portal loss record,
+disaster_events.csv,missing,Recorded missing persons,count,BIPAD Portal loss record,
+disaster_events.csv,injured,Recorded injuries,count,BIPAD Portal loss record,
+disaster_events.csv,people_affected,Recorded people affected,count,BIPAD Portal loss record,"This field is 0 for every single event in the dataset -- a real reporting gap in the source system, not an extraction error"
+disaster_events.csv,families_affected,Recorded families affected,count,BIPAD Portal loss record,
+disaster_events.csv,families_relocated,Recorded families relocated,count,BIPAD Portal loss record,
+disaster_events.csv,houses_destroyed,Recorded houses destroyed,count,BIPAD Portal loss record,
+disaster_events.csv,houses_affected,Recorded houses affected (not destroyed),count,BIPAD Portal loss record,
+disaster_events.csv,roads_destroyed,Recorded roads destroyed,count,BIPAD Portal loss record,
+disaster_events.csv,bridges_destroyed,Recorded bridges destroyed,count,BIPAD Portal loss record,
+disaster_events.csv,estimated_loss_npr,Estimated economic loss,Nepali Rupees,BIPAD Portal loss record,Frequently 0 or null -- inconsistently reported across incidents
+disaster_events.csv,year,Year of incident,year,Derived from incident_date,
+climate_grid_clusters.csv,district_name,"District name (ALL CAPS, matches climate_hazard.csv)",text,geoBoundaries ADM2,"New file, added after verification of the climate_hazard.csv grid-resolution issue"
+climate_grid_clusters.csv,climate_grid_cluster,Group ID shared by districts with byte-identical daily rainfall series,text,Derived by comparing full daily rainfall series across all district pairs,45 unique cluster values across 77 districts. Districts sharing a cluster ID have zero real difference in rainfall_mm in climate_hazard.csv.
+climate_grid_clusters.csv,cluster_size,Number of districts sharing this climate_grid_cluster,count,Derived,1 = independent/unique signal. 2-4 = shared with that many other districts.

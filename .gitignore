@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Node modules for the slide-deck builder (reinstall with `npm install` inside deck/)
+deck/node_modules/
+
+# Local editor / assistant settings
+.claude/
+
+# Course materials that must not be redistributed (see the brief's submission policy)
+Nepal_Capstone_Brief.pdf
+*.zip
+
+# Too large for GitHub (129 MB; the limit is 100 MB). Only the notebook needs it, not the app.
+nepal_climate_capstone_student_data/climate_hazard.csv

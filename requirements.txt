@@ -1,0 +1,9 @@
+# Tested with Python 3.12. Streamlit Community Cloud installs these automatically.
+streamlit==1.65.0
+pandas==3.0.5
+numpy==2.5.2
+scipy==1.18.0
+plotly==6.5.0
+# Used by the notebook only (not the app); kept so one install covers the whole project
+statsmodels==0.15.0
+matplotlib==3.11.1
