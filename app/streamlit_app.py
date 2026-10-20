@@ -238,9 +238,8 @@ def _trend_line(years, values):
 
 # ================================================================= pages
 def page_overview():
-    ui.page_header("Climate Overview", "Explore climate patterns, risks and future projections for Nepal.", "Dashboard")
-    st.caption("This platform covers historical climate (2004–2025), structural risk and recorded disasters. "
-               "It contains no future climate projections.")
+    ui.page_header("Climate Overview", "Explore climate patterns, risks and recorded disasters across Nepal's 77 districts, "
+                   "2004–2025.", "Dashboard")
     filter_bar(["province", "district", "hazard", "period"], "overview")
     idx, (y0, y1), sc, d = st.session_state.flt_hazard, sel_period(), scope(), selected_district()
 
