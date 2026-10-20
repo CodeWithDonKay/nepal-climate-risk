@@ -16,7 +16,7 @@ const THEME = {
     dk1: "334155", lt1: "FFFFFF", dk2: "112B49", lt2: "F4F7FB",   // body text | white | navy | page background
     accent1: "195B96", accent2: "0072B2", accent3: "D55E00",   // active blue (labels) | data blue | vermillion (highlight)
     accent4: "526579", accent5: "009E73", accent6: "76879A",   // muted text | teal | context grey
-    hlink: "0072B2", folHlink: "526579",
+    hlink: "56B4E9", folHlink: "A9BCD0",   // links sit on navy slides: sky blue (6.2:1)
   },
 };
 const HEX = THEME.colors;
@@ -28,7 +28,9 @@ const STATUS = { good: "0072B2", warn: "B84A00", bad: "D55E00" };   // never col
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.333 x 7.5 in
 pres.title = "Nepal Climate Risk and Resilience Assessment";
-pres.author = "Capstone student";
+pres.author = "Kingsley Chigozie";
+const APP_URL = "https://nepal-climate-risk.streamlit.app";
+const PRESENTER = "Kingsley Chigozie";
 pres.theme = { headFontFace: THEME.headFontFace, bodyFontFace: THEME.bodyFontFace };
 const C = pres.SchemeColor;
 
@@ -42,7 +44,7 @@ pres.defineSlideMaster({
   background: { color: C.text2 },
   objects: [
     { placeholder: { options: { name: "kicker", type: "body", x: L, y: 1.55, w: 8.4, h: 0.4, fontSize: 14, bold: true, color: ON_DARK, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
-    { placeholder: { options: { name: "title", type: "title", x: L, y: 2.0, w: 8.4, h: 1.25, fontSize: 44, bold: true, color: C.background1, valign: "top", align: "left", margin: 0 }, text: "" } },
+    { placeholder: { options: { name: "title", type: "title", x: L, y: 2.0, w: 11.0, h: 1.25, fontSize: 44, bold: true, color: C.background1, valign: "top", align: "left", margin: 0 }, text: "" } },
     { placeholder: { options: { name: "body", type: "body", x: L, y: 3.35, w: 8.0, h: 1.4, fontSize: 18, color: C.background2, valign: "top", align: "left", margin: 0 }, text: "" } },
   ],
 });
@@ -53,7 +55,7 @@ pres.defineSlideMaster({
   objects: [
     { placeholder: { options: { name: "kicker", type: "body", x: L, y: 0.35, w: 9.0, h: 0.32, fontSize: 12, bold: true, color: C.accent2, charSpacing: 2, valign: "top", align: "left", margin: 0 }, text: "" } },
     { placeholder: { options: { name: "title", type: "title", x: L, y: 0.7, w: CW, h: 0.85, fontSize: 34, bold: true, color: C.text2, valign: "top", align: "left", margin: 0 }, text: "" } },
-    { text: { text: "Nepal Climate Risk and Resilience Assessment", options: { x: L, y: 7.05, w: 8, h: 0.3, fontSize: 10, color: C.accent4, margin: 0 } } },
+    { text: { text: "Nepal Climate Risk and Resilience Assessment  ·  Kingsley Chigozie", options: { x: L, y: 7.05, w: 8, h: 0.3, fontSize: 10, color: C.accent4, margin: 0 } } },
   ],
   slideNumber: { x: 12.33, y: 7.05, w: 0.4, h: 0.3, fontSize: 10, color: C.accent4, align: "right" },
 });
@@ -166,8 +168,14 @@ function newSlide(master, section, kicker, title) {
   s.addImage({ data: await ridgesData(), x: 6.33, y: 3.9, w: 7.0, h: 3.6, objectName: "mountain ridges", altText: "Himalayan ridge line art" });
   await iconCircle(s, "FaMountain", L, 0.6, 0.5, null, "Logo", true);
   text(s, "NEPAL CLIMATE RISK  ·  INTELLIGENCE PLATFORM", { x: L + 0.68, y: 0.6, w: 7, h: 0.5, fontSize: 12, bold: true, color: ON_DARK, charSpacing: 2, valign: "middle" });
+  text(s, "PRESENTER / ANALYST", { x: L, y: 5.0, w: 5.5, h: 0.3, fontSize: 11, bold: true, color: ON_DARK, charSpacing: 2 });
+  text(s, PRESENTER, { x: L, y: 5.3, w: 5.5, h: 0.5, fontSize: 22, bold: true, color: C.background1 });
+  text(s, [
+    { text: "Live app:  ", options: { color: ON_DARK } },
+    { text: "nepal-climate-risk.streamlit.app", options: { hyperlink: { url: APP_URL, tooltip: "Open the live Nepal Climate Risk app" }, color: "56B4E9", underline: { style: "sng" }, bold: true } },
+  ], { x: L, y: 5.95, w: 5.5, h: 0.4, fontSize: 15 });
   s.addNotes(
-    "Good morning. This assessment answers one practical question: if a donor has 100 million dollars to make Nepal more resilient to climate disasters, where should it go and why? " +
+    "Good morning. My name is Kingsley Chigozie, and I carried out this analysis. This assessment answers one practical question: if a donor has 100 million dollars to make Nepal more resilient to climate disasters, where should it go and why? " +
     "We look at all 77 districts, we test our answer against 15 years of real disaster records, and we end with a recommendation where every dollar is tied to evidence."
   );
 
@@ -569,7 +577,11 @@ function newSlide(master, section, kicker, title) {
     text(s, take[i][1], { x, y: 4.45, w: 3.75, h: 1.3, fontSize: 15, color: C.background2 });
     text(s, take[i][2], { x, y: 5.85, w: 3.75, h: 0.35, fontSize: 12, bold: true, color: ON_DARK, fontFace: "Consolas" });
   }
-  text(s, "Full method, code and assumptions: nepal_risk_assessment.ipynb", { x: L, y: 6.8, w: CW, h: 0.3, fontSize: 11, color: ON_DARK });
+  text(s, [
+    { text: "Explore the live app:  ", options: { color: ON_DARK } },
+    { text: "nepal-climate-risk.streamlit.app", options: { hyperlink: { url: APP_URL, tooltip: "Open the live Nepal Climate Risk app" }, color: "56B4E9", underline: { style: "sng" }, bold: true } },
+    { text: "     ·     Kingsley Chigozie, Analyst     ·     Full method and code: nepal_risk_assessment.ipynb", options: { color: ON_DARK } },
+  ], { x: L, y: 6.7, w: CW, h: 0.4, fontSize: 13 });
   s.addNotes(
     "Three things to remember. One: rain extremes in Nepal are rising. Two: with this data we can rank landslide risk with reasonable confidence, but floods and glacial collapses like 26 August sit in blind spots. " +
     "Three: our 100 million follows the evidence, protecting where we're confident and closing the gaps where we're not. Thank you, I'm happy to take questions."
